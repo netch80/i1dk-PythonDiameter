@@ -77,5 +77,5 @@ def _unittest():
     try:
         a1 = AVP_Grouped.narrow(a)
         assert False
-    except InvalidAVPLengthError, details:
+    except InvalidAVPLengthError:
         pass

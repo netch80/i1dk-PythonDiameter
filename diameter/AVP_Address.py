@@ -90,10 +90,10 @@ def _unittest():
 
     try:
         a = AVP_Address.narrow(AVP(1,"\000\001\177\000\000"))
-    except InvalidAVPLengthError, details:
+    except InvalidAVPLengthError:
         pass
 
     try:
         a = AVP_Address.narrow(AVP(1,"\000\003\177\000\000\001"))
-    except InvalidAddressTypeError, details:
+    except InvalidAddressTypeError:
         pass

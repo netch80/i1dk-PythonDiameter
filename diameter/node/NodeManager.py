@@ -307,7 +307,7 @@ class NodeManager:
                 self.req_map[connkey]={}
             else:
                 #find outstanding requests, and call handleAnswer with NULL
-                if not self.req_map.has_key(connkey):
+                if connkey not in self.req_map:
                     return
                 reqs = self.req_map[connkey]
                 #forget the connection

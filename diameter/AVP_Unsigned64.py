@@ -44,5 +44,5 @@ def _unittest():
     try:
         a = AVP_Unsigned64.narrow(AVP(1,"     "))
         assert False
-    except InvalidAVPLengthError, detail:
+    except InvalidAVPLengthError:
         pass

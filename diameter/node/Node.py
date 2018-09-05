@@ -222,7 +222,7 @@ class Node:
         exception if the connection has gone stale.
         """
         self.map_key_conn_lock.acquire()
-        rc=self.map_key_conn.has_key(connkey)
+        rc=connkey in self.map_key_conn
         self.map_key_conn_lock.release()
         return rc
 
@@ -326,7 +326,7 @@ class Node:
         #We should really try all the possible addresses...
         try:
             ai = socket.getaddrinfo(peer.host,peer.port,0,socket.SOCK_STREAM,socket.IPPROTO_TCP)
-        except socket.gaierror, ex:
+        except socket.gaierror as ex:
             self.logger.log(logging.INFO,"getaddrinfo(%s/%d) failed"%(peer.host,peer.port),exc_info=ex)
             return
 
@@ -340,7 +340,8 @@ class Node:
             fd = socket.socket(ai[0][0], ai[0][1], ai[0][2])
             fd.setblocking(False)
             fd.connect(ai[0][4])
-        except socket.error, (err,errstr):
+        except socket.error as ex:
+            (err,errstr) = ex.args
             if err!=errno.EINPROGRESS:
                 #real error
                 self.logger.log(logging.ERROR,"socket() or connect() failed: %s"%errstr,exc_info=err)
@@ -527,7 +528,8 @@ class Node:
         self.logger.log(logging.DEBUG,"handlereadable()...")
         try:
             stuff = conn.fd.recv(32768)
-        except socket.error, (err,errstr):
+        except socket.error as ex:
+            (err,errstr) = ex.args
             if isTransientError(err):
                 #Not a real error
                 self.logger.log(logging.DEBUG,"recv() failed, err=%d, errstr=%s"%(err,errstr))
@@ -609,7 +611,8 @@ class Node:
         if len(raw)==0: return
         try:
             bytes_sent = conn.fd.send(raw)
-        except socket.error, (err,errstr):
+        except socket.error as ex:
+            (err,errstr) = ex.args
             if isTransientError(err):
                 #Not a real error
                 self.logger.log(logging.DEBUG,"send() failed, err=%d, errstr=%s"%(err,errstr))
@@ -749,7 +752,7 @@ class Node:
                         return peer.capabilities.isAllowedVendorAcctApp(vendor_id,app)
                 return False
             self.logger.log(logging.WARNING,"No auth-app-id, acct-app-id nor vendor-app in packet")
-        except InvalidAVPLengthError, ex:
+        except InvalidAVPLengthError as ex:
             self.logger.log(logging.INFO,"Encountered invalid AVP length while looking at application-id",exc_info=ex)
         return False
 
@@ -948,7 +951,7 @@ class Node:
                 return False
 
             conn.peer.capabilities = result_capabilities
-        except InvalidAVPLengthError, ex:
+        except InvalidAVPLengthError as ex:
             self.logger.log(logging.WARNING,"Invalid AVP in CER/CEA",exc_info=ex)
             if msg.hdr.isRequest():
                 error_response = Message()
@@ -959,7 +962,7 @@ class Node:
                 Utils.setMandatory_RFC3588(error_response)
                 self.__sendMessage_unlocked(error_response,conn)
             return False
-        except InvalidAVPValueError, ex:
+        except InvalidAVPValueError as ex:
             self.logger.log(logging.WARNING,"Invalid AVP in CER/CEA",exc_info=ex)
             if msg.hdr.isRequest():
                 error_response = Message()
