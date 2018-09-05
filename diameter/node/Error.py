@@ -20,7 +20,11 @@ class StaleConnectionError(error):
 
 class NotARequestError(error):
     def __init__(self):
-        error.__init__(self,"")
+        error.__init__(self,"Message is not a request")
+
+class NotAnAnswerError(error):
+    def __init__(self):
+        error.__init__(self,"Message is not an answer")
 
 class NotRoutableError(error):
     def __init__(self):

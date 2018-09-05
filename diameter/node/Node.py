@@ -341,7 +341,6 @@ class Node:
             fd.setblocking(False)
             fd.connect(ai[0][4])
         except socket.error, (err,errstr):
-            import errno
             if err!=errno.EINPROGRESS:
                 #real error
                 self.logger.log(logging.ERROR,"socket() or connect() failed: %s"%errstr,exc_info=err)
@@ -450,7 +449,7 @@ class Node:
                         conn.state = Connection.state_connected_out
                         self.__sendCER(conn)
                     else:
-                        self.logger.log(logging.WARNING,"Connection to '"+conn.host_id+"' failed", ex)
+                        self.logger.log(logging.WARNING,"Connection to '"+conn.host_id+"' failed")
                         fd.close()
                         del self.map_key_conn[conn.key]
                         del self.map_fd_conn[fd.fileno()]

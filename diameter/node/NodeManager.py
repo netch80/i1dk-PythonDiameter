@@ -42,7 +42,7 @@ class NodeManager:
         self.req_map_lock.acquire()
         for connkey,reqs in self.req_map.iteritems():
             for req in reqs.itervalues():
-                handleAnswer(None,connkey,req)
+                self.handleAnswer(None,connkey,req)
         self.req_map_lock.release()
 
     def waitForConnection(self,timeout=None):
@@ -74,13 +74,13 @@ class NodeManager:
         """
         #incoming requests are not expected by this node
         answer = Message()
-        self.logger.log(logging.DEBUG,"Handling incoming request, command_code=%d, end2end=%d, hopbyhop=%d"%(request.hdr.command_code,peer.host,request.hdr.end_to_end_identifier,request.hdr.hop_by_hop_identifier))
+        self.logger.log(logging.DEBUG,"Handling incoming request, command_code=%d, host=%s, end2end=%d, hopbyhop=%d"%(request.hdr.command_code,peer.host,request.hdr.end_to_end_identifier,request.hdr.hop_by_hop_identifier))
         answer.prepareResponse(request)
-        answer.add(AVP_Unsigned32(ProtocolConstants.DI_RESULT_CODE, ProtocolConstants.DIAMETER_RESULT_UNABLE_TO_DELIVER))
+        answer.append(AVP_Unsigned32(ProtocolConstants.DI_RESULT_CODE, ProtocolConstants.DIAMETER_RESULT_UNABLE_TO_DELIVER))
         self.node.addOurHostAndRealm(answer)
         Utils.copyProxyInfo(request,answer)
         Utils.setMandatory_RFC3588(answer)
-        answer(answer,connkey)
+        self.answer(answer,connkey)
 
     def handleAnswer(self,answer,answer_connkey,state):
         """Handle an answer.
@@ -147,7 +147,7 @@ class NodeManager:
                 break
         if not our_route_record_found:
             #add a route-record
-            request.add(AVP_UTF8String(ProtocolConstants.DI_ROUTE_RECORD,settings.host_id))
+            request.append(AVP_UTF8String(ProtocolConstants.DI_ROUTE_RECORD,self.settings.host_id))
         #send it
         self.sendRequest_1(request,connkey,state)
 
@@ -174,7 +174,7 @@ class NodeManager:
         if answer.hdr.isRequest():
             raise NotAnAnswerError()
         #add a route-record
-        answer.add(AVP_UTF8String(ProtocolConstants.DI_ROUTE_RECORD,settings.host_id))
+        answer.append(AVP_UTF8String(ProtocolConstants.DI_ROUTE_RECORD,self.settings.host_id))
         #send it
         self.answer(answer,connkey)
 
