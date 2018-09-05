@@ -4,18 +4,18 @@ import struct
 
 class AVP_Integer64(AVP):
     """64-bit signed integer AVP."""
-    
+
     def __init__(self,code,value,vendor_id=0):
         AVP.__init__(self,code,struct.pack("!Q",value),vendor_id)
-    
+
     def queryValue(self):
         """Returns the payload as a 64-bit signed value."""
         return struct.unpack("!Q",self.payload)[0]
-    
+
     def setValue(self,value):
         """Sets the payload to the specified 64-bit signed value."""
         self.payload = struct.pack("!Q",value)
-    
+
     def __str__(self):
         return str(self.code) + ":" + str(self.queryValue())
 
@@ -33,12 +33,12 @@ class AVP_Integer64(AVP):
 
 def _unittest():
     a = AVP_Integer64(1,17)
-    
+
     assert a.queryValue()==17
-    
-    a.setValue(42);
+
+    a.setValue(42)
     assert a.queryValue()==42
-    
+
     a = AVP_Integer64.narrow(AVP(1,"        "))
     assert a.queryValue()==0x2020202020202020
     try:

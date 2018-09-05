@@ -14,7 +14,7 @@ class NodeManager:
     override handleRequest() and handleAnswer()
     """
     #If your needs are even simpler then have a look at {@link SimpleSyncClient} and {@link dk.i1.diameter.session.SessionManager}
-    
+
     def __init__(self,settings):
         """
         Constructor for NodeManager.
@@ -26,13 +26,13 @@ class NodeManager:
         self.req_map = {}
         self.req_map_lock = threading.Lock()
         self.logger = logging.getLogger("dk.i1.diameter.node")
-    
+
     def start(self):
         """
         Starts the embedded Node.
         """
         self.node.start()
-    
+
     def stop(self,grace_time=0):
         """
         Stops the embedded Node and call handleAnswer() with null messages
@@ -44,21 +44,21 @@ class NodeManager:
             for req in reqs.itervalues():
                 handleAnswer(None,connkey,req)
         self.req_map_lock.release()
-    
+
     def waitForConnection(self,timeout=None):
         """
         Waits until at least one connection to a peer has been established
         and capability-exchange has finished.
         """
         self.node.waitForConnection(timeout)
-    
-    
+
+
     def handleRequest(self,request,connkey,peer):
         """
         Handle a request.
         This method is called when a request arrives. It is meant to be
         overridden by a subclass. This implementation rejects all requests.
-        
+
         Please note that the handleRequest() method is called by the
         networking thread and messages from other peers cannot be received
         until the method returns. If the handleRequest() method needs to do
@@ -81,12 +81,12 @@ class NodeManager:
         Utils.copyProxyInfo(request,answer)
         Utils.setMandatory_RFC3588(answer)
         answer(answer,connkey)
-    
+
     def handleAnswer(self,answer,answer_connkey,state):
         """Handle an answer.
         This method is called when an answer arrives. It is meant to
         be overridden in a subclass.
-        
+
         Please note that the handleAnswer() method is called by the
         networking thread and messages from other peers cannot be received
         until the method returns. If the handleAnswer() method needs to do
@@ -101,7 +101,7 @@ class NodeManager:
         """
         #default implementation: silently discard
         self.logger.log(logging.DEBUG,"Handling incoming answer, command_code=%d, end2end=%d, hopbyhop=%d"%(answer.hdr.command_code,answer.hdr.end_to_end_identifier,answer.hdr.hop_by_hop_identifier))
-    
+
     def answer(self,answer,connkey):
         """Answer a request.
         The answer is sent to the connection. If the connection has been
@@ -115,9 +115,9 @@ class NodeManager:
             raise NotARequestError()
         try:
             self.node.sendMessage(answer,connkey)
-        except StaleConnectionError, ex:
+        except StaleConnectionError:
             pass
-    
+
     def forwardRequest(self,request,connkey,state):
         """
         Forward a request.
@@ -150,7 +150,7 @@ class NodeManager:
             request.add(AVP_UTF8String(ProtocolConstants.DI_ROUTE_RECORD,settings.host_id))
         #send it
         self.sendRequest_1(request,connkey,state)
-    
+
     def forwardAnswer(self,answer,connkey):
         """
         Forward an answer.
@@ -177,7 +177,7 @@ class NodeManager:
         answer.add(AVP_UTF8String(ProtocolConstants.DI_ROUTE_RECORD,settings.host_id))
         #send it
         self.answer(answer,connkey)
-    
+
     def sendRequest_1(self, request, connkey, state):
         """
         Initiate a request.
@@ -204,16 +204,16 @@ class NodeManager:
             self.req_map_lock.release()
             raise StaleConnectionError()
         self.req_map_lock.release()
-        
+
         try:
             self.node.sendMessage(request,connkey)
-            self.logger.log(logging.DEBUG,"Request sent, command_code=%d hop_by_hop_identifier==%d"%(request.hdr.command_code,request.hdr.hop_by_hop_identifier));
+            self.logger.log(logging.DEBUG,"Request sent, command_code=%d hop_by_hop_identifier==%d"%(request.hdr.command_code,request.hdr.hop_by_hop_identifier))
         except StaleConnectionError:
             self.req_map_lock.acquire()
             del self.req_map[request.hdr.hop_by_hop_identifier]
             self.req_map_lock.release()
             raise
-    
+
     def sendRequest_any(self,request,peers,state):
         """
         Sends a request.
@@ -242,7 +242,7 @@ class NodeManager:
             connkey = self.node.findConnection(p)
             if not connkey: continue
             p2 = self.node.connectionKey2Peer(connkey)
-            if not p2: continue;
+            if not p2: continue
             if not self.node.isAllowedApplication(request,p2):
                 self.logger.log(logging.DEBUG,"peer %s cannot handle request"%p.host)
                 continue
@@ -250,7 +250,7 @@ class NodeManager:
             try:
                 self.sendRequest_1(request,connkey,state)
                 return
-            except StaleConnectionError, ex:
+            except StaleConnectionError:
                 pass #ok
             self.logger.log(logging.DEBUG,"Setting retransmit bit")
             request.hdr.setRetransmit(True)
@@ -260,7 +260,7 @@ class NodeManager:
             raise NotRoutableError("No capable peers")
         else:
             raise NotRoutableError()
-    
+
     #messagedispatcher upcall
     def handle_message(self,msg, connkey, peer):
         """
@@ -269,7 +269,7 @@ class NodeManager:
         an outstanding request and calls handleAnswer().
         Subclasses should not override this method.
         """
-        
+
         if msg.hdr.isRequest():
             self.logger.log(logging.DEBUG,"Handling request")
             self.handleRequest(msg,connkey,peer)
@@ -290,7 +290,7 @@ class NodeManager:
             else:
                 self.logger.log(logging.DEBUG,"Answer did not match any outstanding request")
         return True
-    
+
     #connectionlistener upcall
     def handle_connection(self,connkey, peer, updown):
         """
@@ -299,7 +299,7 @@ class NodeManager:
         handleAnswer(null,...) for outstanding requests on the connection.
         Subclasses should not override this method.
         """
-        
+
         self.req_map_lock.acquire()
         try:
             if updown:

@@ -9,7 +9,7 @@ class Message:
     It supports converting to/from the on-the-wire format, and
     manipulating the AVPs. The class is lean and mean, and does as little
     checking as possible.
-    
+
     Example of building a Message:
         msg = Message()
         msg.hdr.application_id = ProtocolConstants.DIAMETER_APPLICATION_ACCOUNTING
@@ -21,7 +21,7 @@ class Message:
         msg.add(AVP_UTF8String(ProtocolConstants.DI_USER_NAME,"user@example.net"))
         msg.add(AVP_Unsigned64(ProtocolConstants.DI_ACCOUNTING_INPUT_OCTETS,36758373691049))
         ...
-    
+
     Example of processing a message:
         msg ...
         for avp in msg.subset(ProtocolConstants.DI_FRAMED_IP_ADDRESS):
@@ -36,7 +36,7 @@ class Message:
         if avp:
             #..do something sensible with reply-message
     """
-    
+
     def __init__(self,that=None):
         if not that:
             self.hdr = MessageHeader()
@@ -44,7 +44,7 @@ class Message:
         else:
             self.hdr = MessageHeader(that.hdr)
             self.avp = that.avp[:]
-    
+
     def encodeSize(self):
         """Calculate the size of the message in on-the-wire format.
         Returns the number of bytes the message will use on-the-wire.
@@ -53,7 +53,7 @@ class Message:
         for a in self.avp:
             sz += a.encodeSize()
         return sz
-    
+
     def encode(self,packer):
         """Encode the message in on-the-wire format to the specified byte array.
         packer: xdrlib.Packer
@@ -62,7 +62,7 @@ class Message:
         self.hdr.encode(packer,sz)
         for a in self.avp:
             a.encode(packer)
-    
+
     def decodeSize(unpacker):
         """Determine the complete size of the message from a on-the-wire
         byte array.
@@ -78,11 +78,11 @@ class Message:
         if (sz % 4)!=0: sz=20 #interesting hack to detect NUL bytes
         return sz
     decodeSize = staticmethod(decodeSize)
-    
+
     decode_status_decoded = 1
     decode_status_not_enough = 2
     decode_status_garbage = 3
-    
+
     def decode(self,unpacker,bytes):
         """Decode a message from on-the-wire format.
         The message is checked to be in valid format and the VPs to be of
@@ -103,13 +103,13 @@ class Message:
             return Message.decode_status_garbage
         if (sz%4)!=0:
             return Message.decode_status_garbage
-        
+
         unpacker.set_position(start)
-        
+
         # header looks ok
         if bytes<sz:
             return Message.decode_status_not_enough
-        
+
         self.hdr.decode(unpacker)
         self.avp = []
         bytes_left = bytes - 20
@@ -125,48 +125,48 @@ class Message:
             a.decode(unpacker,avp_sz)
             self.avp.append(a)
             bytes_left -= avp_sz
-            
+
         return Message.decode_status_decoded
-    
+
     def prepareResponse(self, request):
         """Prepare a response the the supplied request.
         Implemented as hdr.prepareResponse(request.hdr)
         See: MessageHeader.prepareResponse
         """
         self.hdr.prepareResponse(request.hdr)
-    
+
     #clone?
-    
+
     def __len__(self):
         return len(self.avp)
-    
+
     def __getitem__(self,key):
         return self.avp[key]
-    
+
     def __setitem__(self,key,value):
         self.avp[key] = value
-    
+
     def __delitem__(self,key):
         del self.avp[key]
-    
+
     def __iter__(self):
         return self.avp.__iter__()
-    
+
     def append(self,a):
         """Appends an AVP to the message"""
         self.avp.append(a)
-    
+
     def subset(self,code,vendor_id=0):
         """Returns an iteratable subset of the AVPs where the code and vendor_id match"""
         class avp_subset:
             "A subset of the AVPs in a message"
-            
+
             def __init__(self, message, code, vendor_id):
                 self.message = message
                 self.code = code
                 self.vendor_id = vendor_id
                 self.iter = message.__iter__()
-            
+
             def __iter__(self):
                 return self
             def next(self):
@@ -175,13 +175,13 @@ class Message:
                     if a.code==self.code and a.vendor_id==self.vendor_id:
                         return a
         return avp_subset(self,code,vendor_id)
-    
+
     def find(self,code,vendor_id=0):
         """Returns the first AVP with a matching code (and vendor_id if nonzero)."""
         for a in self.avp:
             if a.code==code and a.vendor_id==vendor_id:
                 return a
-    
+
     def count(self,code,vendor_id=0):
         """Return the number of AVPs that matches the specified code (and vendor_id if nonzero)"""
         c=0
@@ -193,7 +193,7 @@ class Message:
 def _unittest():
     m1 = Message()
     assert len(m1)==0
-    
+
     p = xdrlib.Packer()
     m1.encode(p)
     e_sz = len(p.get_buffer())
@@ -201,20 +201,20 @@ def _unittest():
     u = xdrlib.Unpacker(p.get_buffer())
     m2 = Message()
     assert m2.decode(u,e_sz)==Message.decode_status_decoded
-    
+
     a = AVP(1,"hello")
     m1.append(a)
     assert len(m1)==1
-    
+
     p = xdrlib.Packer()
     m1.encode(p)
     e_sz = len(p.get_buffer())
     assert len(p.get_buffer())==36
-    
+
     u = xdrlib.Unpacker(p.get_buffer())
     m2 = Message()
     assert m2.decode(u,e_sz)==Message.decode_status_decoded
-    
+
     #test container+iteration
     m3 = Message()
     m3.append(AVP(1,"user1"))
@@ -224,7 +224,7 @@ def _unittest():
     for a in m3:
         count += 1
     assert count==2
-    
+
     #test subset
     m4 = Message()
     m4.append(AVP(1,"user1"))
@@ -245,7 +245,7 @@ def _unittest():
     for a in m4.subset(117):
         count += 1
     assert count==0
-    
+
     #find
     m5 = Message()
     m5.append(AVP(1,"user1"))
@@ -253,28 +253,27 @@ def _unittest():
     assert m5.find(1)
     assert m5.find(2)
     assert not m5.find(117)
-    
+
     #decode raw (good)
     raw = binascii.a2b_hex("0100003000000000000000000000000000000000000000010000000d7573657231000000000000020000000c666f6f31")
     u = xdrlib.Unpacker(raw)
     m6 = Message()
     assert m6.decode(u,len(raw))==Message.decode_status_decoded
-    
+
     #decode raw (short)
     raw = binascii.a2b_hex("0100003000000000000000000000000000000000000000010000000d7573657231000000000000020000000c666f6f")
     u = xdrlib.Unpacker(raw)
     m7 = Message()
     assert m7.decode(u,len(raw))==Message.decode_status_not_enough
-    
+
     #decode raw (garbage)
     raw = binascii.a2b_hex("0100002900000000000000000000000000000000000000010000000d7573657231000000000000020000000c666f6f")
     u = xdrlib.Unpacker(raw)
     m7 = Message()
     assert m7.decode(u,len(raw))==Message.decode_status_garbage
-    
+
     #decode raw (garbage) (NUL bytes)
     raw = binascii.a2b_hex("0100000000000000000000000000000000000000000000010000000d7573657231000000000000020000000c666f6f")
     u = xdrlib.Unpacker(raw)
     m7 = Message()
     assert m7.decode(u,len(raw))==Message.decode_status_garbage
-    

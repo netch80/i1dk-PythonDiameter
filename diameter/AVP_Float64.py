@@ -5,21 +5,21 @@ import struct
 
 class AVP_Float64(AVP):
     """64-bit floating point AVP"""
-    
+
     def __init__(self,code,value,vendor_id=0):
         AVP.__init__(self,code,struct.pack("!d",value),vendor_id)
-    
+
     def queryValue(self):
         """Returns the payload interpreted as a 64-bit floating point value"""
         return struct.unpack("!d",self.payload)[0]
-    
+
     def setValue(self,value):
         """Sets the payload to the spcified 64-bit floating point value"""
         self.payload = struct.pack("!d",value)
-    
+
     def __str__(self):
         return str(self.code) + ":" + str(self.queryValue())
-    
+
     def narrow(avp):
         """Convert generic AVP to AVP_Float64
         Raises: InvalidAVPLengthError, InvalidAVPValueError
@@ -37,12 +37,12 @@ class AVP_Float64(AVP):
 
 def _unittest():
     a = AVP_Float64(1,17.5)
-    
+
     assert a.queryValue()==17.5
-    
-    a.setValue(42.75);
+
+    a.setValue(42.75)
     assert a.queryValue()==42.75
-    
+
     a = AVP_Float64.narrow(AVP(1,"\100\105\140\000\000\000\000\000"))
     assert a.queryValue()==42.75
     try:

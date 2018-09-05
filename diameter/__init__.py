@@ -26,21 +26,21 @@ Note: The following AVP types described in RFC358 have not been implemented:
         Presumable specific to NASREQ</dd>
 """
 
-from AVP import AVP
-from AVP_Address import AVP_Address
-from AVP_Float32 import AVP_Float32
-from AVP_Float64 import AVP_Float64
-from AVP_Grouped import AVP_Grouped
-from AVP_OctetString import AVP_OctetString
-from AVP_Time import AVP_Time
-from AVP_UTF8String import AVP_UTF8String
-from AVP_Unsigned32 import AVP_Unsigned32
-from AVP_Unsigned64 import AVP_Unsigned64
-from Error import InvalidAVPLengthError,InvalidAddressTypeError,InvalidAVPValueError
-from Message import Message
-from MessageHeader import MessageHeader
-from ProtocolConstants import *
-from Utils import *
+from .AVP import AVP
+from .AVP_Address import AVP_Address
+from .AVP_Float32 import AVP_Float32
+from .AVP_Float64 import AVP_Float64
+from .AVP_Grouped import AVP_Grouped
+from .AVP_OctetString import AVP_OctetString
+from .AVP_Time import AVP_Time
+from .AVP_UTF8String import AVP_UTF8String
+from .AVP_Unsigned32 import AVP_Unsigned32
+from .AVP_Unsigned64 import AVP_Unsigned64
+from .Error import InvalidAVPLengthError,InvalidAddressTypeError,InvalidAVPValueError
+from .Message import Message
+from .MessageHeader import MessageHeader
+from .ProtocolConstants import *
+from .Utils import *
 
 __author__="Ivan Skytte Jørgensen"
 

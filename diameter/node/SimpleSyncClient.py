@@ -10,7 +10,7 @@ class SimpleSyncClient(NodeManager):
     A simple Diameter client that support synchronous request-answer calls.
     It does not support receiving requests.
     """
-    
+
     def __init__(self,settings,peers):
         """
         Constructor for SimpleSyncClient
@@ -19,7 +19,7 @@ class SimpleSyncClient(NodeManager):
         """
         NodeManager.__init__(self,settings)
         self.peers = peers
-    
+
     def start(self):
         """
         Starts this client. The client must be started before sending
@@ -31,13 +31,13 @@ class SimpleSyncClient(NodeManager):
         NodeManager.start(self)
         for p in self.peers:
             self.node.initiateConnection(p,True)
-    
+
     class __SyncCall:
         def __init__(self):
             self.answer_ready = False
             self.answer = None
             self.cv = threading.Condition()
-    
+
     def handleAnswer(self,answer, answer_connkey, state):
         "Dispatches an answer to threads waiting for it."
         state.cv.acquire()
@@ -45,7 +45,7 @@ class SimpleSyncClient(NodeManager):
         state.answer_ready = True
         state.cv.notify()
         state.cv.release()
-    
+
     def sendRequest(self,request):
         """
         Send a request and wait for an answer.
@@ -53,9 +53,9 @@ class SimpleSyncClient(NodeManager):
         The answer to the request. Null if there is no answer (all peers
         down, or other error)
         """
-        
+
         sc = SimpleSyncClient.__SyncCall()
-        
+
         try:
             self.sendRequest_any(request, self.peers, sc)
             #ok, sent
@@ -72,24 +72,24 @@ class SimpleSyncClient(NodeManager):
 
 def _unittest():
     logging.basicConfig(level=logging.DEBUG,format='%(asctime)s %(name)s %(levelname)s %(message)s')
-    
+
     from diameter.node import Capability,NodeSettings
     from diameter import ProtocolConstants,Message
-    cap = Capability();
+    cap = Capability()
     cap.addAuthApp(ProtocolConstants.DIAMETER_APPLICATION_NASREQ)
     settings = NodeSettings("isjsys.int.i1.dk","i1.dk",1,cap,3868,"pythondiameter",1)
-    
+
     ssc = SimpleSyncClient(settings,[])
     ssc.start()
-    
+
     msg = Message()
     msg.hdr.application_id = ProtocolConstants.DIAMETER_APPLICATION_ACCOUNTING
     msg.hdr.command_code = ProtocolConstants.DIAMETER_COMMAND_ACCOUNTING
     msg.hdr.setRequest(True)
     msg.hdr.setProxiable(True)
-    
+
     answer = ssc.sendRequest(msg)
     assert not answer
-    
+
     ssc.stop()
     del ssc

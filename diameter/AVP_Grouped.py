@@ -10,10 +10,10 @@ def _pack(avps):
 
 class AVP_Grouped(AVP):
     """AVP grouping multiple AVPs together."""
-    
+
     def __init__(self,code,avps=[],vendor_id=0):
         AVP.__init__(self,code,_pack(avps),vendor_id)
-    
+
     def getAVPs(self):
         """Returns a copy of the embedded AVPs in a list"""
         avps=[]
@@ -28,11 +28,11 @@ class AVP_Grouped(AVP):
             avps.append(a)
             bytes_left -= sz
         return avps
-    
+
     def setAVPs(self,avps):
         """Sets the payload to a copy of the AVPs in the list"""
         self.payload = _pack(avps)
-    
+
     def __str__(self):
         #The default str(...sequence...) looks suboptimal here
         s = ""
@@ -40,7 +40,7 @@ class AVP_Grouped(AVP):
             if s!="": s+=','
             s += a.str_prefix__()
         return str(self.code) + ":[" + s + "]"
-    
+
     def narrow(avp):
         """Convert generic AVP to AVP_Float64
         Raises: InvalidAVPLengthError
@@ -65,18 +65,17 @@ def _unittest():
     a = AVP_Grouped(1)
     assert a.code==1
     assert len(a.getAVPs())==0
-    
+
     a1 = AVP_Grouped(1,[AVP(2,"u1"),AVP(2,"u2")])
     assert len(a1.getAVPs())==2
-    
+
     a = AVP(1,"\000\000\000\002\000\000\000\012\165\061\000\000\000\000\000\002\000\000\000\012\165\062\000\000")
     a1 = AVP_Grouped.narrow(a)
     assert len(a1.getAVPs())==2
-    
+
     a = AVP(1,"\000\000\000\002\000\000\000\012\165\061\000\000\000")
     try:
         a1 = AVP_Grouped.narrow(a)
         assert False
     except InvalidAVPLengthError, details:
         pass
-    

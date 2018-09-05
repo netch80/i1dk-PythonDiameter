@@ -7,10 +7,10 @@ def _pack_address(address):
     addrs=socket.getaddrinfo(address, 0)
     for a in addrs:
         if a[0]==socket.AF_INET:
-            raw = socket.inet_pton(socket.AF_INET,a[4][0]);
+            raw = socket.inet_pton(socket.AF_INET,a[4][0])
             return struct.pack("!h4s",1,raw)
         if a[0]==socket.AF_INET6:
-            raw = socket.inet_pton(socket.AF_INET6,a[4][0]);
+            raw = socket.inet_pton(socket.AF_INET6,a[4][0])
             return struct.pack("!h16s",2,raw)
     raise InvalidAddressTypeError()
 
@@ -20,11 +20,11 @@ class AVP_Address(AVP):
     It supports both IPv4 and IPv6.
     Note: Values not conforming to RFC3588 has been seen in the wild.
     """
-    
+
     def __init__(self,code,address,vendor_id=0):
         """Constructs an AVP_Address. The address is expected to tuple (family,address)"""
         AVP.__init__(self,code,_pack_address(address),vendor_id)
-    
+
     def queryAddress(self):
         """Returns the payload as a tuple (family,address)
         Raises: InvalidAddressTypeError
@@ -35,21 +35,21 @@ class AVP_Address(AVP):
             return (socket.AF_INET6,socket.inet_ntop(socket.AF_INET6,self.payload[2:]))
         else:
             raise InvalidAddressTypeError(self)
-        
+
     def setAddress(self,address):
         """Sets the payload. The address is expected to tuple (family,address)
         Raises: InvalidAddressTypeError
         """
         self.payload = _pack_address(address)
-    
+
     def __str__(self):
         if len(self.payload)==2+4:
-            return self.str_prefix__() + " " + inet_ntop(socket.AF_INET,self.payload[2:])
+            return self.str_prefix__() + " " + socket.inet_ntop(socket.AF_INET,self.payload[2:])
         elif len(self.payload)==2+16:
-            return self.str_prefix__() + " " + inet_ntop(socket.AF_INET6,self.payload[2:])
+            return self.str_prefix__() + " " + socket.inet_ntop(socket.AF_INET6,self.payload[2:])
         else:
             return AVP.__str__(self)
-    
+
     def narrow(avp):
         """Convert a generic AVP to AVP_Address
         Attempts to interpret the payload as an address and returns
@@ -78,23 +78,22 @@ def _unittest():
     a = AVP_Address(1,ip4)
     assert a.queryAddress()[0]==socket.AF_INET
     assert a.queryAddress()[1]==ip4
-    
+
     ip6="2001:db8::1"
     a = AVP_Address(1,ip6)
     assert a.queryAddress()[0]==socket.AF_INET6
     assert a.queryAddress()[1]==ip6
-    
+
     a = AVP_Address.narrow(AVP(1,"\000\001\177\000\000\001"))
     assert a.queryAddress()[0]==socket.AF_INET
     assert a.queryAddress()[1]=="127.0.0.1"
-    
+
     try:
         a = AVP_Address.narrow(AVP(1,"\000\001\177\000\000"))
     except InvalidAVPLengthError, details:
         pass
-    
+
     try:
         a = AVP_Address.narrow(AVP(1,"\000\003\177\000\000\001"))
     except InvalidAddressTypeError, details:
         pass
-    

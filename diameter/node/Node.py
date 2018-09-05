@@ -1,5 +1,4 @@
 import socket
-import thread
 import threading
 import time
 import diameter.ProtocolConstants
@@ -13,21 +12,20 @@ from diameter import *
 from diameter.node.Error import *
 import struct
 import xdrlib
-import struct
 import select
 import errno
 import logging
 
 class SelectThread(threading.Thread):
     def __init__(self,node):
-        threading.Thread.__init__(self,name="Diameter node thread");
+        threading.Thread.__init__(self,name="Diameter node thread")
         self.node=node
     def run(self):
         self.node.run_select()
 
 class ReconnectThread(threading.Thread):
     def __init__(self,node):
-        threading.Thread.__init__(self,name="Diameter node reconnect thread");
+        threading.Thread.__init__(self,name="Diameter node reconnect thread")
         self.node=node
     def run(self):
         self.node.run_reconnect()
@@ -41,7 +39,7 @@ class Node:
     the node but no state is maintained per message.
     Node is quite low-level. You probably want to use NodeManager instead.
     """
-    
+
     def __init__(self,message_dispatcher,connection_listener,settings):
         """
         Constructor for Node.
@@ -68,7 +66,7 @@ class Node:
         self.map_key_conn = {}
         self.map_fd_conn = {}
         self.logger = logging.getLogger("dk.i1.diameter.node")
-    
+
     def start(self):
         """
         Start the node.
@@ -80,17 +78,17 @@ class Node:
         self.please_stop = False
         self.shutdown_deadline = None
         self.__prepare()
-        
+
         self.node_thread = SelectThread(self)
         self.node_thread.setDaemon(True)
         self.node_thread.start()
-        
+
         self.reconnect_thread = ReconnectThread(self)
         self.reconnect_thread.setDaemon(True)
         self.reconnect_thread.start()
-        
+
         self.logger.log(logging.INFO,"Diameter node started")
-    
+
     def stop(self,grace_time=0):
         """
         Stop the node.
@@ -138,7 +136,7 @@ class Node:
         self.map_key_conn = {}
         self.map_fd_conn = {}
         self.logger.log(logging.INFO,"Diameter node stopped")
-    
+
     def __prepare(self):
         if self.settings.port!=0:
             sock_listen = None
@@ -149,9 +147,9 @@ class Node:
                     #most likely error: server has IPv6 capability, but IPv6 not enabled locally
                     sock_listen = None
                     continue
-                
+
                 try:
-                    sock_listen.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR,struct.pack("i",1));
+                    sock_listen.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR,struct.pack("i",1))
                     sock_listen.bind(addr[4])
                     sock_listen.listen(10)
                 except socket.error:
@@ -159,17 +157,17 @@ class Node:
                     sock_listen.close()
                     sock_listen = None
                     continue
-                
+
                 #It worked...
                 break
-            
+
             if not sock_listen:
                 raise StartError("Could not create listen-socket")
             self.sock_listen = sock_listen
         else:
             self.sock_listen = None
         self.map_key_conn = {}
-    
+
     def __anyReadyConnection(self):
         rc=False
         self.map_key_conn_lock.acquire()
@@ -179,7 +177,7 @@ class Node:
                 break
         self.map_key_conn_lock.release()
         return rc
-    
+
     def waitForConnection(self,timeout=None):
         """Wait until at least one connection has been established or until the timeout expires.
         Waits until at least one connection to a peer has been established
@@ -215,7 +213,7 @@ class Node:
         if not connkey:
             self.logger.log(logging.DEBUG,peer.host+" NOT found")
         return connkey
-    
+
     def isConnectionKeyValid(self,connkey):
         """Returns if the connection is still valid.
         This method is usually only of interest to programs that do lengthy
@@ -227,7 +225,7 @@ class Node:
         rc=self.map_key_conn.has_key(connkey)
         self.map_key_conn_lock.release()
         return rc
-    
+
     def connectionKey2Peer(self,connkey):
         self.map_key_conn_lock.acquire()
         try:
@@ -236,7 +234,7 @@ class Node:
             peer = None
         self.map_key_conn_lock.release()
         return peer
-    
+
     def connectionKey2InetAddress(self,connkey):
         self.map_key_conn_lock.acquire()
         try:
@@ -247,7 +245,7 @@ class Node:
         a = conn.fd.getpeername()
         self.map_key_conn_lock.release()
         return a
-    
+
     def nextHopByHopIdentifier(self,connkey):
         "Returns the next hop-by-hop identifier for a connection"
         self.map_key_conn_lock.acquire()
@@ -259,7 +257,7 @@ class Node:
         rc = conn.nextHopByHopIdentifier()
         self.map_key_conn_lock.release()
         return rc
-    
+
     def sendMessage(self,msg,connkey):
         """Send a message.
         Send the specified message on the specified connection.
@@ -278,13 +276,13 @@ class Node:
             raise StaleConnectionError()
         self.__sendMessage_unlocked(msg,conn)
         self.map_key_conn_lock.release()
-    
+
     def __sendMessage_unlocked(self,msg,conn):
         self.logger.log(logging.DEBUG,"command=%d, to=%s"%(msg.hdr.command_code,conn.peer.host))
         p = xdrlib.Packer()
         msg.encode(p)
         raw = p.get_buffer()
-        self.__hexDump(logging.DEBUG,"Sending to "+conn.host_id,raw);
+        self.__hexDump(logging.DEBUG,"Sending to "+conn.host_id,raw)
         was_empty = not conn.hasNetOutput()
         conn.appendAppOutputBuffer(raw)
         conn.processAppOutBuffer()
@@ -293,7 +291,7 @@ class Node:
             if conn.hasNetOutput():
                 # still some output. Wake select thread so it re-evaluates fdsets
                 self.__wakeSelectThread()
-    
+
     def initiateConnection(self,peer,persistent=False):
         """Initiate a connection to a peer.
         A connection (if not already present) will be initiated to the peer.
@@ -303,7 +301,7 @@ class Node:
         persistent peers and if the connection is lost it will automatically
         be re-established. There is no way to change a peer from persistent
         to non-persistent.
-        
+
         If/when the connection has been established and capability-exchange
         has finished threads waiting in {@link #waitForConnection} are woken.
           peer        The peer that the node should try to establish a connection to.
@@ -313,7 +311,7 @@ class Node:
             self.persistent_peers_lock.acquire()
             self.persistent_peers.add(peer)
             self.persistent_peers_lock.release()
-        
+
         self.map_key_conn_lock.acquire()
         for conn in self.map_key_conn.itervalues():
             if conn.peer and \
@@ -323,7 +321,7 @@ class Node:
                 return
             #what if we are connecting and the host_id matches?
         self.map_key_conn_lock.release()
-        
+
         #look up the ip-address first without the large mutex held
         #We should really try all the possible addresses...
         try:
@@ -331,15 +329,15 @@ class Node:
         except socket.gaierror, ex:
             self.logger.log(logging.INFO,"getaddrinfo(%s/%d) failed"%(peer.host,peer.port),exc_info=ex)
             return
-        
-        self.logger.log(logging.INFO,"Initiating connection to '" + peer.host +"'");
-        
+
+        self.logger.log(logging.INFO,"Initiating connection to '" + peer.host +"'")
+
         conn = Connection()
         conn.host_id = peer.host
         conn.peer = peer
-        
+
         try:
-            fd = socket.socket(ai[0][0], ai[0][1], ai[0][2]);
+            fd = socket.socket(ai[0][0], ai[0][1], ai[0][2])
             fd.setblocking(False)
             fd.connect(ai[0][4])
         except socket.error, (err,errstr):
@@ -353,21 +351,21 @@ class Node:
             self.logger.log(logging.DEBUG,"Connection to %s succeeded immediately"%peer.host)
             conn.state = Connection.state_connected_out
         conn.fd = fd
-        
+
         self.map_key_conn_lock.acquire()
         self.map_key_conn[conn.key] = conn
         self.map_fd_conn[conn.fd.fileno()] = conn
         self.map_key_conn_lock.release()
-        
+
         if conn.state == Connection.state_connected_out:
             self.__sendCER(conn)
         else:
             self.__wakeSelectThread()
-    
+
     def run_select(self):
         if self.sock_listen:
             self.sock_listen.setblocking(False)
-        
+
         while True:
             if self.please_stop:
                 if time.time()>=self.shutdown_deadline:
@@ -377,7 +375,7 @@ class Node:
                 self.map_key_conn_lock.release()
                 if isempty:
                     break
-            
+
             #build FD sets
             self.map_key_conn_lock.acquire()
             iwtd=[]
@@ -439,7 +437,7 @@ class Node:
                         for i in range(0,len(ready_fds[1])):
                             if ready_fds[1][i]==conn.fd:
                                 del ready_fds[1][i]
-                                break;
+                                break
             for fd in ready_fds[1]:
                 self.map_key_conn_lock.acquire()
                 conn = self.map_fd_conn[fd.fileno()]
@@ -461,9 +459,9 @@ class Node:
                     self.logger.log(logging.DEBUG,"fd is writable")
                     self.__handleWritable(conn)
                 self.map_key_conn_lock.release()
-            
+
             self.__runTimers()
-        
+
         #close all connections
         self.logger.log(logging.DEBUG,"Closing all transport connections")
         self.map_key_conn_lock.acquire()
@@ -471,10 +469,10 @@ class Node:
             conn = self.map_key_conn[connkey]
             self.__closeConnection_unlocked(conn,True)
         self.map_key_conn_lock.release()
-    
+
     def __wakeSelectThread(self):
         self.fd_pipe[1].send("d")
-    
+
     def __calcNextTimeout(self):
         timeout = None
         self.map_key_conn_lock.acquire()
@@ -488,7 +486,7 @@ class Node:
             if (not timeout) or self.shutdown_deadline<timeout:
                 timeout = self.shutdown_deadline
         return timeout
-    
+
     def __runTimers(self):
         self.map_key_conn_lock.acquire()
         for connkey in self.map_key_conn.keys():
@@ -503,7 +501,7 @@ class Node:
             elif action==ConnectionTimers.timer_action_disconnect_idle:
                 self.logger.log(logging.WARNING,"Disconnecting due to idle")
                 #busy is the closest thing to "no traffic for a long time. No point in keeping the connection"
-                self.__sendDPR(conn,ProtocolConstants.DI_DISCONNECT_CAUSE_BUSY);
+                self.__sendDPR(conn,ProtocolConstants.DI_DISCONNECT_CAUSE_BUSY)
                 self.__closeConnection_unlocked(conn)
             elif action==ConnectionTimers.timer_action_disconnect_no_dw:
                 self.logger.log(logging.WARNING,"Disconnecting due to no DWA")
@@ -511,7 +509,7 @@ class Node:
             elif action==ConnectionTimers.timer_action_dwr:
                 self.__sendDWR(conn)
         self.map_key_conn_lock.release()
-    
+
     def run_reconnect(self):
         while True:
             self.map_key_conn_cv.acquire()
@@ -520,12 +518,12 @@ class Node:
                 break
             self.map_key_conn_cv.wait(30.0)
             self.map_key_conn_cv.release()
-            
+
             self.persistent_peers_lock.acquire()
             for pp in self.persistent_peers:
-                self.initiateConnection(pp,False);
+                self.initiateConnection(pp,False)
             self.persistent_peers_lock.release()
-    
+
     def __handleReadable(self,conn):
         self.logger.log(logging.DEBUG,"handlereadable()...")
         try:
@@ -544,11 +542,11 @@ class Node:
             self.logger.log(logging.DEBUG,"Read 0 bytes from peer")
             self.__closeConnection(conn)
             return
-        
+
         conn.appendNetInBuffer(stuff)
         conn.processNetInBuffer()
         self.__processInBuffer(conn)
-    
+
     def __hexDump(self,level,msg,raw):
         if not self.logger.isEnabledFor(level): return
         #todo: there must be a faster way of doing this...
@@ -571,7 +569,7 @@ class Node:
                     l += '.'
             s += l + '\n'
         self.logger.log(level,s)
-    
+
     def __processInBuffer(self,conn):
         self.logger.log(logging.DEBUG,"Node.__processInBuffer()")
         raw = conn.getAppInBuffer()
@@ -590,7 +588,7 @@ class Node:
             status = msg.decode(u,msg_size)
             #print "  state=",status
             if status==Message.decode_status_decoded:
-                self.__hexDump(logging.DEBUG,"Got message "+conn.host_id,raw[msg_start:msg_start+msg_size]);
+                self.__hexDump(logging.DEBUG,"Got message "+conn.host_id,raw[msg_start:msg_start+msg_size])
                 b = self.__handleMessage(msg,conn)
                 if not b:
                     self.logger.log(logging.DEBUG,"handle error")
@@ -599,13 +597,13 @@ class Node:
             elif status==Message.decode_status_not_enough:
                 break #?
             elif status==Message.decode_status_garbage:
-                self.__hexDump(logging.WARNING,"Garbage from "+conn.host_id,raw[msg_start:msg_start+msg_size]);
-                #self.__hexDump(logging.INFO,"Complete inbuffer: ",raw,0,raw_bytes);
+                self.__hexDump(logging.WARNING,"Garbage from "+conn.host_id,raw[msg_start:msg_start+msg_size])
+                #self.__hexDump(logging.INFO,"Complete inbuffer: ",raw,0,raw_bytes)
                 self.__closeConnection(conn,reset=True)
                 return
         conn.consumeAppInBuffer(u.get_position())
-    
-    
+
+
     def __handleWritable(self,conn):
         self.logger.log(logging.DEBUG,"__handleWritable():")
         raw = conn.getNetOutBuffer()
@@ -621,9 +619,9 @@ class Node:
             self.logger.log(logging.INFO,"send() failed, err=%d, errstr=%s"%(err,errstr))
             self.__closeConnection_unlocked(conn)
             return
-            
+
         conn.consumeNetOutBuffer(bytes_sent)
-    
+
     def __closeConnection_unlocked(self,conn,reset=False):
         if conn.state==Connection.state_closed:
             return
@@ -632,26 +630,26 @@ class Node:
         if reset:
             #Set lingertime to zero to force a RST when closing the socket
             #rfc3588, section 2.1
-           conn.fd.setsockopt(socket.SOL_SOCKET,socket.SO_LINGER,struct.pack("ii",1,0))
-           pass
+            conn.fd.setsockopt(socket.SOL_SOCKET,socket.SO_LINGER,struct.pack("ii",1,0))
+            pass
         conn.fd.close()
         if self.connection_listener:
             self.connection_listener.handle_connection(conn.key,conn.peer,False)
         conn.state = Connection.state_closed
-    
+
     def __closeConnection(self,conn,reset=False):
         self.logger.log(logging.INFO,"Closing connection to " + conn.host_id)
         self.map_key_conn_lock.acquire()
         self.__closeConnection_unlocked(conn,reset)
         self.map_key_conn_lock.release()
         self.logger.log(logging.DEBUG,"Closed connection to " + conn.host_id)
-    
+
     def __initiateConnectionClose(self,conn,why):
         if conn.state!=Connection.state_ready:
             return #Should probably never happen
         self.__sendDPR(conn,why)
         conn.state = Connection.state_closing
-    
+
     def __handleMessage(self,msg,conn):
         if self.logger.isEnabledFor(logging.DEBUG):
             self.logger.log(logging.DEBUG,"command_code=%d application_id=%d connection_state=%d"%(msg.hdr.command_code,msg.hdr.application_id,conn.state))
@@ -664,7 +662,7 @@ class Node:
                 self.logger.log(logging.WARNING,"Got something that wasn't a CER")
                 return False
             conn.timers.markRealActivity()
-            return self.__handleCER(msg,conn);
+            return self.__handleCER(msg,conn)
         elif conn.state==Connection.state_connected_out:
             #only CEA allowed
             if msg.hdr.isRequest() or \
@@ -681,16 +679,16 @@ class Node:
                 return False
             elif msg.hdr.command_code==ProtocolConstants.DIAMETER_COMMAND_DEVICE_WATCHDOG:
                 if msg.hdr.isRequest():
-                    return self.__handleDWR(msg,conn);
+                    return self.__handleDWR(msg,conn)
                 else:
-                    return self.__handleDWA(msg,conn);
+                    return self.__handleDWA(msg,conn)
             elif msg.hdr.command_code==ProtocolConstants.DIAMETER_COMMAND_DISCONNECT_PEER:
                 if msg.hdr.isRequest():
-                    return self.__handleDPR(msg,conn);
+                    return self.__handleDPR(msg,conn)
                 else:
                     return self.__handleDPA(msg,conn)
             else:
-                conn.timers.markRealActivity();
+                conn.timers.markRealActivity()
                 if msg.hdr.isRequest():
                     if self.__isLoopedMessage(msg):
                         self.__rejectLoopedRequest(msg,conn)
@@ -705,7 +703,7 @@ class Node:
                         return True #unusual, but not impossible
                 else:
                     return True
-    
+
     def __isLoopedMessage(self,msg):
         #6.1.3
         for a in msg.subset(ProtocolConstants.DI_ROUTE_RECORD):
@@ -713,11 +711,11 @@ class Node:
             if avp.queryValue() == self.settings.host_id:
                 return True
         return False
-    
+
     def __rejectLoopedRequest(self,msg,conn):
         self.logger.log(logging.WARNING,"Rejecting looped request from %s (command=%d)"%(conn.peer.host,msg.hdr.command_code))
         self.__rejectRequest(msg,conn,ProtocolConstants.DIAMETER_RESULT_LOOP_DETECTED)
-    
+
     def isAllowedApplication(self,msg,peer):
         """Determine if a message is supported by a peer.
         The auth-application-id, acct-application-id or
@@ -736,7 +734,7 @@ class Node:
             avp = msg.find(ProtocolConstants.DI_ACCT_APPLICATION_ID)
             if avp:
                 app = AVP_Unsigned32.narrow(avp).queryValue()
-                self.logger.log(logging.DEBUG,"acct-application-id=%d"%app);
+                self.logger.log(logging.DEBUG,"acct-application-id=%d"%app)
                 return peer.capabilities.isAllowedAcctApp(app)
             avp = msg.find(ProtocolConstants.DI_VENDOR_SPECIFIC_APPLICATION_ID)
             if avp:
@@ -753,9 +751,9 @@ class Node:
                 return False
             self.logger.log(logging.WARNING,"No auth-app-id, acct-app-id nor vendor-app in packet")
         except InvalidAVPLengthError, ex:
-            self.logger.log(logging.INFO,"Encountered invalid AVP length while looking at application-id",exc_info=ex);
+            self.logger.log(logging.INFO,"Encountered invalid AVP length while looking at application-id",exc_info=ex)
         return False
-    
+
     def __rejectDisallowedRequest(self,msg,conn):
         self.logger.log(logging.WARNING,"Rejecting request  from " + conn.peer.host + " (command=" + msg.hdr.command_code + ") because it is not allowed.")
         self.__rejectRequest(msg,conn,ProtocolConstants.DIAMETER_RESULT_APPLICATION_UNSUPPORTED)
@@ -767,8 +765,8 @@ class Node:
         self.addOurHostAndRealm(response)
         Utils.copyProxyInfo(msg,response)
         Utils.setMandatory_RFC3588(response)
-        self.sendMessage(response,conn.key);
-    
+        self.sendMessage(response,conn.key)
+
     def addOurHostAndRealm(self,msg):
         """Add origin-host and origin-realm to a message.
         The configured host and realm is added to the message as origin-host
@@ -776,20 +774,20 @@ class Node:
         """
         msg.append(AVP_UTF8String(ProtocolConstants.DI_ORIGIN_HOST,self.settings.host_id))
         msg.append(AVP_UTF8String(ProtocolConstants.DI_ORIGIN_REALM,self.settings.realm))
-    
+
     def nextEndToEndIdentifier(self):
         """Returns an end-to-end identifier that is unique.
         The initial value is generated as described in RFC 3588 section 3 page 34.
         """
         return self.node_state.nextEndToEndIdentifier()
-    
+
     def __doElection(self,cer_host_id):
         #5.6.4
         c = cmp(self.settings.host_id,cer_host_id)
         if c==0:
             #this is a misconfigured peer or ourselves.
             return False
-        
+
         close_other_connection = c>0
         rc = True
         self.map_key_conn_cv.acquire()
@@ -806,7 +804,7 @@ class Node:
         return rc
 
     def __handleCER(self,msg,conn):
-        self.logger.log(logging.DEBUG,"CER received from " + conn.host_id);
+        self.logger.log(logging.DEBUG,"CER received from " + conn.host_id)
         #Handle election
         avp = msg.find(ProtocolConstants.DI_ORIGIN_HOST)
         if not avp:
@@ -814,7 +812,7 @@ class Node:
             error_response = Message()
             error_response.prepareResponse(msg)
             error_response.append(AVP_Unsigned32(ProtocolConstants.DI_RESULT_CODE, ProtocolConstants.DIAMETER_RESULT_MISSING_AVP))
-            self.addOurHostAndRealm(error_response);
+            self.addOurHostAndRealm(error_response)
             error_response.append(AVP_FailedAVP(AVP_UTF8String(ProtocolConstants.DI_ORIGIN_HOST,"")))
             Utils.setMandatory_RFC3588(error_response)
             self.__sendMessage_unlocked(error_response,conn)
@@ -829,11 +827,11 @@ class Node:
             Utils.setMandatory_RFC3588(error_response)
             self.__sendMessage_unlocked(error_response,conn)
             return False
-        
+
         conn.peer = Peer(socket_address=conn.fd.getpeername())
         conn.peer.host = host_id
         conn.host_id = host_id
-        
+
         if self.__handleCEx(msg,conn):
             #todo: check inband-security
             cea = Message()
@@ -841,12 +839,12 @@ class Node:
             #Result-Code
             cea.append(AVP_Unsigned32(ProtocolConstants.DI_RESULT_CODE, ProtocolConstants.DIAMETER_RESULT_SUCCESS))
             self.__addCEStuff(cea,conn.peer.capabilities,conn)
-            
+
             self.logger.log(logging.INFO,"Connection to " +conn.host_id + " is now ready")
-            Utils.setMandatory_RFC3588(cea);
+            Utils.setMandatory_RFC3588(cea)
             self.__sendMessage_unlocked(cea,conn)
-            conn.state=Connection.state_ready;
-            
+            conn.state=Connection.state_ready
+
             if self.connection_listener:
                 self.connection_listener.handle_connection(conn.key, conn.peer, True)
             self.obj_conn_wait.acquire()
@@ -857,22 +855,22 @@ class Node:
             return False
 
     def __handleCEA(self,msg,conn):
-        self.logger.log(logging.DEBUG,"CEA received from "+conn.host_id);
+        self.logger.log(logging.DEBUG,"CEA received from "+conn.host_id)
         avp = msg.find(ProtocolConstants.DI_ORIGIN_HOST)
         if not avp:
-            self.logger.log(logging.WARNING,"Peer did not include origin-host-id in CEA");
+            self.logger.log(logging.WARNING,"Peer did not include origin-host-id in CEA")
             return False
-        host_id = AVP_UTF8String.narrow(avp).queryValue();
-        self.logger.log(logging.DEBUG,"Node:Peer's origin-host-id is '"+host_id+"'");
-        
+        host_id = AVP_UTF8String.narrow(avp).queryValue()
+        self.logger.log(logging.DEBUG,"Node:Peer's origin-host-id is '"+host_id+"'")
+
         conn.peer = Peer(socket_address=conn.fd.getpeername())
         conn.peer.host = host_id
         conn.host_id = host_id
-        
+
         rc = self.__handleCEx(msg,conn)
         if rc:
-            conn.state=Connection.state_ready;
-            self.logger.log(logging.INFO,"Connection to " +conn.host_id + " is now ready");
+            conn.state=Connection.state_ready
+            self.logger.log(logging.INFO,"Connection to " +conn.host_id + " is now ready")
             if self.connection_listener:
                 self.connection_listener.handle_connection(conn.key, conn.peer, True)
             self.obj_conn_wait.acquire()
@@ -881,9 +879,9 @@ class Node:
             return True
         else:
             return False
-    
+
     def __handleCEx(self,msg,conn):
-        self.logger.log(logging.DEBUG,"Processing CER/CEA");
+        self.logger.log(logging.DEBUG,"Processing CER/CEA")
         #calculate capabilities and allowed applications
         try:
             reported_capabilities = Capability()
@@ -928,7 +926,7 @@ class Node:
                         reported_capabilities.addVendorAcctApp(vendor_id,acct_app_id)
                 else:
                     raise InvalidAVPValueError(a)
-            
+
             result_capabilities = Capability.calculateIntersection(self.settings.capabilities, reported_capabilities)
             if self.logger.isEnabledFor(logging.DEBUG):
                 s = ""
@@ -949,13 +947,13 @@ class Node:
                     Utils.setMandatory_RFC3588(error_response)
                     self.__sendMessage_unlocked(error_response,conn)
                 return False
-            
+
             conn.peer.capabilities = result_capabilities
         except InvalidAVPLengthError, ex:
             self.logger.log(logging.WARNING,"Invalid AVP in CER/CEA",exc_info=ex)
             if msg.hdr.isRequest():
                 error_response = Message()
-                error_response.prepareResponse(msg);
+                error_response.prepareResponse(msg)
                 error_response.append(AVP_Unsigned32(ProtocolConstants.DI_RESULT_CODE, ProtocolConstants.DIAMETER_RESULT_INVALID_AVP_LENGTH))
                 self.addOurHostAndRealm(error_response)
                 error_response.append(AVP_FailedAVP(ex.avp))
@@ -963,7 +961,7 @@ class Node:
                 self.__sendMessage_unlocked(error_response,conn)
             return False
         except InvalidAVPValueError, ex:
-            self.logger.log(logging.WARNING,"Invalid AVP in CER/CEA",exc_info=ex);
+            self.logger.log(logging.WARNING,"Invalid AVP in CER/CEA",exc_info=ex)
             if msg.hdr.isRequest():
                 error_response = Message()
                 error_response.prepareResponse(msg)
@@ -976,7 +974,7 @@ class Node:
         return True
 
     def __sendCER(self,conn):
-        self.logger.log(logging.DEBUG,"Sending CER to "+conn.host_id);
+        self.logger.log(logging.DEBUG,"Sending CER to "+conn.host_id)
         cer = Message()
         cer.hdr.setRequest(True)
         cer.hdr.command_code = ProtocolConstants.DIAMETER_COMMAND_CAPABILITIES_EXCHANGE
@@ -985,12 +983,12 @@ class Node:
         cer.hdr.end_to_end_identifier = self.node_state.nextEndToEndIdentifier()
         self.__addCEStuff(cer,self.settings.capabilities,conn)
         Utils.setMandatory_RFC3588(cer)
-        
+
         self.__sendMessage_unlocked(cer,conn)
 
     def __addCEStuff(self,msg,capabilities,conn):
         #Origin-Host, Origin-Realm
-        self.addOurHostAndRealm(msg);
+        self.addOurHostAndRealm(msg)
         #Host-IP-Address
         #  This is not really that good...
         if conn.peer and conn.peer.use_ericsson_host_ip_address_format:
@@ -1004,7 +1002,7 @@ class Node:
         #Product-Name
         msg.append(AVP_UTF8String(ProtocolConstants.DI_PRODUCT_NAME, self.settings.product_name))
         #Origin-State-Id
-        msg.append(AVP_Unsigned32(ProtocolConstants.DI_ORIGIN_STATE_ID, self.node_state.state_id));
+        msg.append(AVP_Unsigned32(ProtocolConstants.DI_ORIGIN_STATE_ID, self.node_state.state_id))
         #Error-Message, Failed-AVP: not in success
         #Supported-Vendor-Id
         for i in capabilities.supported_vendor:
@@ -1037,7 +1035,7 @@ class Node:
             msg.append(AVP_Unsigned32(ProtocolConstants.DI_FIRMWARE_REVISION,self.settings.firmware_revision))
 
     def __handleDWR(self,msg,conn):
-        self.logger.log(logging.INFO,"DWR received from "+conn.host_id);
+        self.logger.log(logging.INFO,"DWR received from "+conn.host_id)
         conn.timers.markDWR()
         dwa = Message()
         dwa.prepareResponse(msg)
@@ -1045,7 +1043,7 @@ class Node:
         self.addOurHostAndRealm(dwa)
         dwa.append(AVP_Unsigned32(ProtocolConstants.DI_ORIGIN_STATE_ID, self.node_state.state_id))
         Utils.setMandatory_RFC3588(dwa)
-        
+
         self.sendMessage(dwa,conn.key)
         return True
 
@@ -1053,38 +1051,38 @@ class Node:
         self.logger.log(logging.DEBUG,"DWA received from "+conn.host_id)
         conn.timers.markDWA()
         return True
-    
+
     def __handleDPR(self,msg,conn):
-        self.logger.log(logging.DEBUG,"DPR received from "+conn.host_id);
+        self.logger.log(logging.DEBUG,"DPR received from "+conn.host_id)
         dpa = Message()
         dpa.prepareResponse(msg)
         dpa.append(AVP_Unsigned32(ProtocolConstants.DI_RESULT_CODE, ProtocolConstants.DIAMETER_RESULT_SUCCESS))
         self.addOurHostAndRealm(dpa)
         Utils.setMandatory_RFC3588(dpa)
-        
+
         self.sendMessage(dpa,conn.key)
         return False
-    
+
     def __handleDPA(self,msg,conn):
         if conn.state==Connection.state_closing:
             self.logger.log(logging.INFO,"Got a DPA from %s"%conn.host_id)
         else:
             self.logger.log(logging.WARNING,"Got a DPA. This is not expected")
         return False #in any case close the connection
-    
+
     def __handleUnknownRequest(self,msg,conn):
-        self.logger.log(logging.INFO,"Unknown request received from "+conn.host_id);
+        self.logger.log(logging.INFO,"Unknown request received from "+conn.host_id)
         answer = Message()
         answer.prepareResponse(msg)
         answer.append(AVP_Unsigned32(ProtocolConstants.DI_RESULT_CODE, ProtocolConstants.DIAMETER_RESULT_UNABLE_TO_DELIVER))
         self.addOurHostAndRealm(answer)
         Utils.setMandatory_RFC3588(answer)
-        
+
         self.sendMessage(answer,conn.key)
         return True
 
     def __sendDWR(self,conn):
-        self.logger.log(logging.DEBUG,"Sending DWR to "+conn.host_id);
+        self.logger.log(logging.DEBUG,"Sending DWR to "+conn.host_id)
         dwr = Message()
         dwr.hdr.setRequest(True)
         dwr.hdr.command_code = ProtocolConstants.DIAMETER_COMMAND_DEVICE_WATCHDOG
@@ -1094,13 +1092,13 @@ class Node:
         self.addOurHostAndRealm(dwr)
         dwr.append(AVP_Unsigned32(ProtocolConstants.DI_ORIGIN_STATE_ID, self.node_state.state_id))
         Utils.setMandatory_RFC3588(dwr)
-        
+
         self.__sendMessage_unlocked(dwr,conn)
-        
+
         conn.timers.markDWR_out()
-    
+
     def __sendDPR(self,conn,why):
-        self.logger.log(logging.DEBUG,"Sending DPR to "+conn.host_id);
+        self.logger.log(logging.DEBUG,"Sending DPR to "+conn.host_id)
         dpr = Message()
         dpr.hdr.setRequest(True)
         dpr.hdr.command_code = ProtocolConstants.DIAMETER_COMMAND_DISCONNECT_PEER
@@ -1110,9 +1108,9 @@ class Node:
         self.addOurHostAndRealm(dpr)
         dpr.append(AVP_Unsigned32(ProtocolConstants.DI_DISCONNECT_CAUSE, why))
         Utils.setMandatory_RFC3588(dpr)
-        
+
         self.__sendMessage_unlocked(dpr,conn)
-    
+
     def makeNewSessionId(self,optional_part=None):
         """Generate a new session-id
         A Session-Id consists of a mandatory part and an optional part.
@@ -1142,12 +1140,12 @@ def _unittest():
         def handle(self,msg,connkey,peer):
             return False
     logging.basicConfig(level=logging.DEBUG,format='%(asctime)s %(name)s %(levelname)s %(message)s')
-    
-    cap = Capability();
+
+    cap = Capability()
     cap.addAuthApp(ProtocolConstants.DIAMETER_APPLICATION_NASREQ)
     settings = NodeSettings("isjsys.int.i1.dk","i1.dk",1,cap,3868,"pythondiameter",1)
     n = Node(MD(),CL(),settings)
-    
+
     n.start()
     time.sleep(1)
     n.stop()

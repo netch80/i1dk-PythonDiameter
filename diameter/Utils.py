@@ -286,7 +286,7 @@ def checkABNF(msg, abnf):
     Check that a message conforms to an ABNF.
     The message is checked if it conforms to the ABNF specification.
     You can use it like this:
-    
+
     abnf_my_message = [
         (True,   1,  1, ProtocolConstants.DI_SESSION_ID),
         (False,  1,  1, ProtocolConstants.DI_ORIGIN_HOST),
@@ -307,20 +307,20 @@ def checkABNF(msg, abnf):
         if caf.[2]:
             msg.add(AVP_UTF8String(ProtocolConstants.DI_ERROR_MESSAGE,caf[2]))
         ...
-    
+
     Parameters:
       msg  The message to be checked.
       abnf  An list of ABNFComponents. You can use on of the predefined ones or your own. It is supposed to be a list of tuples (fixed_position,min_count,max_count,code)
     Returns:
       None on success. A tuple (failed_avp,result_code,error_message) on failure. The failed_avp can be None. The error_message item can be None.
     """
-    
+
     arbitrary_avps_allowed=False
     for a in abnf:
         if not a[3]:
             arbitrary_avps_allowed = True
             break
-    
+
     i=-1
     for fixed_position,min_count,max_count,code in abnf:
         i+=1
@@ -351,13 +351,13 @@ def checkABNF(msg, abnf):
                     ProtocolConstants.DIAMETER_RESULT_AVP_OCCURS_TOO_MANY_TIMES,
                     None
                    )
-        
+
         if fixed_position:
             #check position
             #assumption: previous AVPs are also fixed-position (otherwise this doesn't make much sense)
             #assumption: arbitrary AVPs are not allowed before this
             #todo: support previous AVP non-1 occurences
-            
+
             #find postion
             pos=0
             while msg[pos].code!=code:
@@ -368,7 +368,7 @@ def checkABNF(msg, abnf):
                         ProtocolConstants.DIAMETER_RESULT_INVALID_AVP_VALUE,
                         "AVP occurs at wrong position"
                        )
-    
+
     if not arbitrary_avps_allowed:
         #check that there aren't any
         for avp in msg:
@@ -382,7 +382,7 @@ def checkABNF(msg, abnf):
                         ProtocolConstants.DIAMETER_RESULT_AVP_NOT_ALLOWED,
                         "hov" #None
                        )
-    
+
     return None #message passed checks
 
 
@@ -391,7 +391,7 @@ def _unittest():
     from Message import Message
     from AVP import AVP
     from AVP_OctetString import AVP_OctetString
-    
+
     #Test setMandatory
     avps = []
     avps.append(AVP(1,"user@example.net"))
@@ -403,7 +403,7 @@ def _unittest():
     assert avps[1].isMandatory()
     assert not avps[2].isMandatory()
     assert not avps[3].isMandatory()
-    
+
     msg = Message()
     msg.append(AVP(1,"user@example.net"))
     msg.append(AVP(2,"user@example.net"))
@@ -414,14 +414,14 @@ def _unittest():
     assert msg[1].isMandatory()
     assert not msg[2].isMandatory()
     assert not msg[3].isMandatory()
-    
+
     avps = []
     avps.append(AVP(ProtocolConstants.DI_ORIGIN_HOST,"user@example.net"))
     avps.append(AVP(999,"user@example.net"))
     setMandatory_RFC3588(avps)
     assert avps[0].isMandatory()
     assert not avps[1].isMandatory()
-    
+
     #test copyProxyInfo
     src_msg = Message()
     src_msg.append(AVP(1,"user@example.net"))
@@ -435,7 +435,7 @@ def _unittest():
     assert src_msg[1].payload==dst_msg[0].payload
     assert src_msg[3].code==dst_msg[1].code
     assert src_msg[3].payload==dst_msg[1].payload
-    
+
     #Test the ABNF checker
     #create a conforming DPR
     msg = Message()
@@ -472,7 +472,7 @@ def _unittest():
     assert rc
     assert rc[1]==ProtocolConstants.DIAMETER_RESULT_AVP_NOT_ALLOWED
     assert rc[0]
-    #create a conforming ASR 
+    #create a conforming ASR
     msg = Message()
     msg.append(AVP(ProtocolConstants.DI_SESSION_ID,"A value"))
     msg.append(AVP(ProtocolConstants.DI_ORIGIN_HOST,"A value"))

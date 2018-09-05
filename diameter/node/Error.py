@@ -25,7 +25,7 @@ class NotARequestError(error):
 class NotRoutableError(error):
     def __init__(self):
         error.__init__(self,"The message could not be routed to any peers")
-    
+
 class NotProxiableError(error):
     def __init__(self):
         error.__init__(self,"")

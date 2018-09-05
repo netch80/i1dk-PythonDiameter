@@ -5,35 +5,35 @@ class AVP:
     """A Diameter AVP
     See RFC3588 section 4 for details.
     An AVP consists of a code, some flags, an optional vendor ID, and a payload.
-    
+
     The payload is not checked for correct size and content until you try to
     construct one of its subclasses from it. Eg
-    
+
     avp = ...
     try:
         application_id = AVP_Unsigned32.narrow(avp).queryValue()
         ...
     except InvalidAVPLengthError, ex:
         ..
-    
+
     Members:
         code (int)          The AVP code
         vendor_id (int)     The vendor ID. Assigning directly to this has the delayed effect of of setting/unsetting the vendor flag bit
         payload
-    
+
     See also: ProtocolConstants
     """
-    
+
     avp_flag_vendor        = 0x80
     avp_flag_mandatory     = 0x40
     avp_flag_private       = 0x20
-    
+
     def __init__(self,code=0,payload="",vendor_id=0):
         self.payload = payload
         self.code = code
         self.flags = 0
         self.vendor_id = vendor_id
-    
+
     def decodeSize(unpacker,bytes):
         start = unpacker.get_position()
         if bytes<8:
@@ -50,9 +50,9 @@ class AVP:
         else:
             if length<8:
                 return 0  #garbage
-        return padded_length;
+        return padded_length
     decodeSize = staticmethod(decodeSize)
-    
+
     def decode(self,unpacker,bytes):
         if bytes<8:
             return False
@@ -76,28 +76,28 @@ class AVP:
         else:
             self.vendor_id = 0
         self.payload = unpacker.unpack_fopaque(length)
-        
+
         return True
-    
+
     def encodeSize(self):
         sz = 4 + 4
         if self.vendor_id!=0:
             sz += 4
         sz += (len(self.payload)+3)&~3
-        return sz;
-    
+        return sz
+
     def encode(self,packer):
         sz = 4 + 4
         if self.vendor_id!=0:
             sz += 4
         sz += len(self.payload)
-        
+
         f = self.flags
         if self.vendor_id!=0:
             f |= AVP.avp_flag_vendor
         else:
             f &= ~AVP.avp_flag_vendor
-        
+
         i=0
         packer.pack_uint(self.code)
         i += 4
@@ -109,40 +109,40 @@ class AVP:
         padded_len = (len(self.payload)+3)&~3
         packer.pack_fopaque(padded_len,self.payload)
         i += padded_len
-        
+
         return i
-    
+
     def isVendorSpecific(self):
         """Returns if the AVP is vendor-specific (has non-zero vendor_id)"""
         return (self.vendor_id!=0)
-    
+
     def isMandatory(self):
         """Returns if the mandatory (M) flag is set"""
         return (self.flags&AVP.avp_flag_mandatory)!=0
-    
+
     def isPrivate(self):
         """Returns if the private (P) flag is set"""
         return (self.flags&AVP.avp_flag_private)!=0
-    
+
     def setMandatory(self,f):
         """Sets/unsets the mandatory (M) flag"""
         if f:
             self.flags |= AVP.avp_flag_mandatory
         else:
             self.flags &= ~AVP.avp_flag_mandatory
-    
+
     def setPrivate(self,f):
         """Sets/unsets the private (P) flag"""
         if f:
             self.flags |= AVP.avp_flag_private
         else:
             self.flags &= ~AVP.avp_flag_private
-    
+
     def setM(self):
         """Sets the M-bit and returns the instance"""
         self.flags |= AVP.avp_flag_mandatory
         return self
-    
+
     def str_prefix__(self):
         """Return a string prefix suitable for building a __str__ result"""
         s = str(self.code)
@@ -155,23 +155,23 @@ class AVP:
         if self.vendor_id!=0:
             s+= ":"+str(self.vendor_id)
         return s
-    
+
     def __str__(self):
         return self.str_prefix__() + " 0x" + binascii.b2a_hex(self.payload)
 
 def _unittest():
     a1 = AVP(1,"user")
-    
-    a1.setMandatory(True);
+
+    a1.setMandatory(True)
     assert a1.isMandatory()
-    a1.setMandatory(False);
+    a1.setMandatory(False)
     assert not a1.isMandatory()
-    
-    a1.setPrivate(True);
+
+    a1.setPrivate(True)
     assert a1.isPrivate()
-    a1.setPrivate(False);
+    a1.setPrivate(False)
     assert not a1.isPrivate()
-    
+
     a1 = AVP(1,"user")
     e_sz1 = a1.encodeSize()
     p = Packer()
@@ -179,32 +179,32 @@ def _unittest():
     assert e_sz1 == 12
     assert e_sz2 == 12
     assert e_sz1==e_sz2
-    
+
     u = Unpacker(p.get_buffer())
-    
+
     d_sz1 = AVP.decodeSize(u,e_sz2)
     assert d_sz1 == e_sz2
-    
+
     a2 = AVP()
     assert a2.decode(u,d_sz1)
-    
+
     assert a1.code == a2.code
     assert a1.vendor_id == a2.vendor_id
-    
+
     #same as above, but requires padding
     a1 = AVP(1,"user")
     e_sz1 = a1.encodeSize()
     p = Packer()
     e_sz2 = a1.encode(p)
     assert e_sz1==e_sz2
-    
+
     u = Unpacker(p.get_buffer())
-    
+
     d_sz1 = AVP.decodeSize(u,e_sz2)
     assert d_sz1 == e_sz2
-    
+
     a2 = AVP()
     assert a2.decode(u,d_sz1)
-    
+
     assert a1.code == a2.code
     assert a1.vendor_id == a2.vendor_id
