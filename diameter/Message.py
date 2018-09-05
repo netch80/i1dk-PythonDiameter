@@ -18,8 +18,8 @@ class Message:
         msg.hdr.setProxiable(True)
         #Add AVPs
         ...
-        msg.add(AVP_UTF8String(ProtocolConstants.DI_USER_NAME,"user@example.net"))
-        msg.add(AVP_Unsigned64(ProtocolConstants.DI_ACCOUNTING_INPUT_OCTETS,36758373691049))
+        msg.append(AVP_UTF8String(ProtocolConstants.DI_USER_NAME,"user@example.net"))
+        msg.append(AVP_Unsigned64(ProtocolConstants.DI_ACCOUNTING_INPUT_OCTETS,36758373691049))
         ...
 
     Example of processing a message:
@@ -87,9 +87,13 @@ class Message:
         """Decode a message from on-the-wire format.
         The message is checked to be in valid format and the VPs to be of
         the correct length etc. Invalid/reserved bits are not checked.
-          unpacker  a xdrlib.Unpacker possibly containing a Diameter message
-          bytes  the bytes to try to decode
-        Return the result for the decode operation.
+        Parameters:
+            :unpacker (xdrlib.Unpacker): an unpacker possibly containing a
+                Diameter message.
+            :bytes (int): the count of bytes to try to decode.
+        Returns:
+            :(int): a Message.decode_status_* constant -
+                the result for the decode operation.
         """
         start = unpacker.get_position()
         if bytes < 4:
