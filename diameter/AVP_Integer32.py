@@ -19,6 +19,7 @@ class AVP_Integer32(AVP):
     def __str__(self):
         return str(self.code) + ":" + str(self.queryValue())
 
+    @staticmethod
     def narrow(avp):
         """Convert generic AVP to AVP_Integer32
         Raises: InvalidAVPLengthError
@@ -29,7 +30,6 @@ class AVP_Integer32(AVP):
         a = AVP_Integer32(avp.code, value, avp.vendor_id)
         a.flags = avp.flags
         return a
-    narrow = staticmethod(narrow)
 
 def _unittest():
     a = AVP_Integer32(1,17)

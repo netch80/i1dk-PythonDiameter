@@ -20,6 +20,7 @@ class AVP_UTF8String(AVP):
     def __str__(self):
         return AVP.str_prefix__(self) + " " + self.queryValue()
 
+    @staticmethod
     def narrow(avp):
         """Convert generic AVP to AVP_UTF8String
         """
@@ -27,7 +28,6 @@ class AVP_UTF8String(AVP):
         a.flags = avp.flags
         a.payload = avp.payload
         return a
-    narrow = staticmethod(narrow)
 
 def _unittest():
     a = AVP_UTF8String(1,"user")

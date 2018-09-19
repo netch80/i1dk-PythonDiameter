@@ -50,6 +50,7 @@ class Capability:
                len(self.auth_vendor)==0 and \
                len(self.acct_vendor)==0
 
+    @staticmethod
     def calculateIntersection(us, peer):
         #assumption: we are not a relay
         c = Capability()
@@ -73,7 +74,6 @@ class Capability:
             if us.isAllowedVendorAcctApp(va.vendor_id,va.application_id):
                 c.addVendorAcctApp(va.vendor_id,va.application_id)
         return c
-    calculateIntersection = staticmethod(calculateIntersection)
 
 def _unittest():
     #vendor id

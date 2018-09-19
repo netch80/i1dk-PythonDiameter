@@ -20,6 +20,7 @@ class AVP_Float64(AVP):
     def __str__(self):
         return str(self.code) + ":" + str(self.queryValue())
 
+    @staticmethod
     def narrow(avp):
         """Convert generic AVP to AVP_Float64
         Raises: InvalidAVPLengthError, InvalidAVPValueError
@@ -33,7 +34,6 @@ class AVP_Float64(AVP):
         a = AVP_Float64(avp.code, value, avp.vendor_id)
         a.flags = avp.flags
         return a
-    narrow = staticmethod(narrow)
 
 def _unittest():
     a = AVP_Float64(1,17.5)

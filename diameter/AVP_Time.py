@@ -25,6 +25,7 @@ class AVP_Time(AVP_Unsigned32):
     def setSecondsSince1970(self,seconds_since_1970):
         AVP_Unsigned32.setValue(self,seconds_since_1970+AVP_Time.seconds_between_1900_and_1970)
 
+    @staticmethod
     def narrow(avp):
         """Convert generic AVP to AVP_Float64
         Raises: InvalidAVPLengthError
@@ -35,7 +36,6 @@ class AVP_Time(AVP_Unsigned32):
         a = AVP_Time(avp.code, value, avp.vendor_id)
         a.flags = avp.flags
         return a
-    narrow = staticmethod(narrow)
 
     def __str__(self):
         return AVP.str_prefix__(self) + " " + str(datetime.fromtimestamp(self.querySecondsSince1970()))

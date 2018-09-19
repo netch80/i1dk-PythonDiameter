@@ -63,6 +63,7 @@ class Message:
         for a in self.avp:
             a.encode(packer)
 
+    @staticmethod
     def decodeSize(unpacker):
         """Determine the complete size of the message from a on-the-wire
         byte array.
@@ -77,7 +78,6 @@ class Message:
         if sz<20: sz=4 #interesting hack to detect NUL bytes
         if (sz % 4)!=0: sz=20 #interesting hack to detect NUL bytes
         return sz
-    decodeSize = staticmethod(decodeSize)
 
     decode_status_decoded = 1
     decode_status_not_enough = 2

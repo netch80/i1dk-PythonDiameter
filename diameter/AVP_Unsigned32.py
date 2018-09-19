@@ -23,6 +23,7 @@ class AVP_Unsigned32(AVP):
     def __str__(self):
         return str(self.code) + ":" + str(self.queryValue())
 
+    @staticmethod
     def narrow(avp):
         """Convert generic AVP to AVP_Unsigned32
         Raises: InvalidAVPLengthError
@@ -33,7 +34,6 @@ class AVP_Unsigned32(AVP):
         a = AVP_Unsigned32(avp.code, value, avp.vendor_id)
         a.flags = avp.flags
         return a
-    narrow = staticmethod(narrow)
 
 def _unittest():
     a = AVP_Unsigned32(1,17)

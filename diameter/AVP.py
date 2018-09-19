@@ -34,6 +34,7 @@ class AVP:
         self.flags = 0
         self.vendor_id = vendor_id
 
+    @staticmethod
     def decodeSize(unpacker,bytes):
         start = unpacker.get_position()
         if bytes<8:
@@ -51,7 +52,6 @@ class AVP:
             if length<8:
                 return 0  #garbage
         return padded_length
-    decodeSize = staticmethod(decodeSize)
 
     def decode(self,unpacker,bytes):
         if bytes<8:

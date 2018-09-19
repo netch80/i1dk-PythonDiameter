@@ -41,6 +41,7 @@ class AVP_Grouped(AVP):
             s += a.str_prefix__()
         return str(self.code) + ":[" + s + "]"
 
+    @staticmethod
     def narrow(avp):
         """Convert generic AVP to AVP_Float64
         Raises: InvalidAVPLengthError
@@ -59,7 +60,6 @@ class AVP_Grouped(AVP):
         a = AVP_Grouped(avp.code, avps, avp.vendor_id)
         a.flags = avp.flags
         return a
-    narrow = staticmethod(narrow)
 
 def _unittest():
     a = AVP_Grouped(1)

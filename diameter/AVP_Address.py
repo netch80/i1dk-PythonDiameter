@@ -50,6 +50,7 @@ class AVP_Address(AVP):
         else:
             return AVP.__str__(self)
 
+    @staticmethod
     def narrow(avp):
         """Convert a generic AVP to AVP_Address
         Attempts to interpret the payload as an address and returns
@@ -71,7 +72,6 @@ class AVP_Address(AVP):
         a.payload = avp.payload[:]
         a.flags = avp.flags
         return a
-    narrow = staticmethod(narrow)
 
 def _unittest():
     ip4="127.0.0.1"
