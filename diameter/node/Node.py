@@ -278,7 +278,9 @@ class Node:
         self.map_key_conn_lock.release()
 
     def __sendMessage_unlocked(self,msg,conn):
-        self.logger.log(logging.DEBUG,"command=%d, to=%s"%(msg.hdr.command_code,conn.peer.host))
+        self.logger.log(logging.DEBUG, "command=%d, to=%s" % (
+                msg.hdr.command_code,
+                conn.peer.host if conn.peer else '(WRONG_PEER)'))
         p = xdrlib.Packer()
         msg.encode(p)
         raw = p.get_buffer()
@@ -913,11 +915,11 @@ class Node:
                     acct_app_id = None
                     for ga in g:
                         if ga.code==ProtocolConstants.DI_VENDOR_ID:
-                            vendor_id = AVP_Unsigned32.narrow(g[0]).queryValue()
-                        elif g.code==ProtocolConstants.DI_AUTH_APPLICATION_ID:
-                            auth_app_id = AVP_Unsigned32.narrow(g).queryValue()
-                        elif g.code==ProtocolConstants.DI_ACCT_APPLICATION_ID:
-                            acct_app_id = AVP_Unsigned32.narrow(g).queryValue()
+                            vendor_id = AVP_Unsigned32.narrow(ga).queryValue()
+                        elif ga.code==ProtocolConstants.DI_AUTH_APPLICATION_ID:
+                            auth_app_id = AVP_Unsigned32.narrow(ga).queryValue()
+                        elif ga.code==ProtocolConstants.DI_ACCT_APPLICATION_ID:
+                            acct_app_id = AVP_Unsigned32.narrow(ga).queryValue()
                         else:
                             raise InvalidAVPValueError(a)
                     if (not vendor_id) or not (auth_app_id or acct_app_id):
