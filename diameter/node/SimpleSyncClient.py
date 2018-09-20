@@ -40,11 +40,10 @@ class SimpleSyncClient(NodeManager):
 
     def handleAnswer(self,answer, answer_connkey, state):
         "Dispatches an answer to threads waiting for it."
-        state.cv.acquire()
-        state.answer = answer
-        state.answer_ready = True
-        state.cv.notify()
-        state.cv.release()
+        with state.cv:
+            state.answer = answer
+            state.answer_ready = True
+            state.cv.notify()
 
     def sendRequest(self,request):
         """
@@ -59,10 +58,9 @@ class SimpleSyncClient(NodeManager):
         try:
             self.sendRequest_any(request, self.peers, sc)
             #ok, sent
-            sc.cv.acquire()
-            while not sc.answer_ready:
-                sc.cv.wait()
-            sc.cv.release()
+            with sc.cv:
+                while not sc.answer_ready:
+                    sc.cv.wait()
         except NotRoutableError:
             self.logger.log(logging.DEBUG,"SimpleSyncClient.sendRequest(): not routable")
         except NotARequestError:

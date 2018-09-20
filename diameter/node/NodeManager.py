@@ -39,11 +39,10 @@ class NodeManager:
         for outstanding requests.
         """
         self.node.stop(grace_time)
-        self.req_map_lock.acquire()
-        for connkey,reqs in self.req_map.iteritems():
-            for req in reqs.itervalues():
-                self.handleAnswer(None,connkey,req)
-        self.req_map_lock.release()
+        with self.req_map_lock:
+            for connkey,reqs in self.req_map.iteritems():
+                for req in reqs.itervalues():
+                    self.handleAnswer(None,connkey,req)
 
     def waitForConnection(self,timeout=None):
         """
@@ -196,22 +195,20 @@ class NodeManager:
             raise NotARequestError()
         request.hdr.hop_by_hop_identifier = self.node.nextHopByHopIdentifier(connkey)
         #remember state
-        self.req_map_lock.acquire()
-        try:
-            reqs = self.req_map[connkey]
-            reqs[request.hdr.hop_by_hop_identifier] = state
-        except KeyError:
-            self.req_map_lock.release()
-            raise StaleConnectionError()
-        self.req_map_lock.release()
+        with self.req_map_lock:
+            try:
+                reqs = self.req_map[connkey]
+                reqs[request.hdr.hop_by_hop_identifier] = state
+            except KeyError:
+                self.req_map_lock.release()
+                raise StaleConnectionError()
 
         try:
             self.node.sendMessage(request,connkey)
             self.logger.log(logging.DEBUG,"Request sent, command_code=%d hop_by_hop_identifier==%d"%(request.hdr.command_code,request.hdr.hop_by_hop_identifier))
         except StaleConnectionError:
-            self.req_map_lock.acquire()
-            del self.req_map[request.hdr.hop_by_hop_identifier]
-            self.req_map_lock.release()
+            with self.req_map_lock:
+                del self.req_map[request.hdr.hop_by_hop_identifier]
             raise
 
     def sendRequest_any(self,request,peers,state):
@@ -277,14 +274,13 @@ class NodeManager:
             self.logger.log(logging.DEBUG,"Handling answer, hop_by_hop_identifier=%d"%msg.hdr.hop_by_hop_identifier)
             #locate state
             state=None
-            self.req_map_lock.acquire()
-            try:
-                reqs = self.req_map[connkey]
-                state = reqs[msg.hdr.hop_by_hop_identifier]
-                del reqs[msg.hdr.hop_by_hop_identifier]
-            except KeyError:
-                pass
-            self.req_map_lock.release()
+            with self.req_map_lock:
+                try:
+                    reqs = self.req_map[connkey]
+                    state = reqs[msg.hdr.hop_by_hop_identifier]
+                    del reqs[msg.hdr.hop_by_hop_identifier]
+                except KeyError:
+                    pass
             if state:
                 self.handleAnswer(msg,connkey,state)
             else:
@@ -300,8 +296,7 @@ class NodeManager:
         Subclasses should not override this method.
         """
 
-        self.req_map_lock.acquire()
-        try:
+        with self.req_map_lock:
             if updown:
                 #register the new connection
                 self.req_map[connkey]={}
@@ -315,8 +310,6 @@ class NodeManager:
                 #remove the entries
                 for state in reqs.itervalues():
                     self.handleAnswer(None,connkey,state)
-        finally:
-            self.req_map_lock.release()
 
 def _unittest():
     pass

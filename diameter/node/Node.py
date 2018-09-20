@@ -99,33 +99,31 @@ class Node:
           grace_time  Maximum time to wait for connections to close gracefully.
         """
         self.logger.log(logging.INFO,"Stopping Diameter node")
-        self.map_key_conn_cv.acquire()
-        self.shutdown_deadline = time.time() + grace_time
-        self.please_stop = True
-        for connkey in self.map_key_conn.keys():
-            conn = self.map_key_conn[connkey]
-            if conn.state==Connection.state_connecting or \
-               conn.state==Connection.state_connected_in or \
-               conn.state==Connection.state_connected_out:
-                self.logger.log(logging.INFO,"Closing connection to %s because were are shutting down"%conn.host_id)
-                del self.map_fd_conn[conn.fd.fileno()]
-                del self.map_key_conn[connkey]
-                conn.fd.close()
-            elif conn.state==Connection.state_tls:
-                pass #todo
-            elif conn.state==Connection.state_ready:
-                #self.__sendDPR(conn,ProtocolConstants.DI_DISCONNECT_CAUSE_REBOOTING)
-                #self.__closeConnection_unlocked(conn,True)
-                self.__initiateConnectionClose(conn,ProtocolConstants.DI_DISCONNECT_CAUSE_REBOOTING)
-            elif conn.state==Connection.state_closing:
-                pass #nothing to do
-            elif conn.state==Connection.state_closed:
-                pass #nothing to do
-        self.map_key_conn_cv.release()
+        with self.map_key_conn_cv:
+            self.shutdown_deadline = time.time() + grace_time
+            self.please_stop = True
+            for connkey in self.map_key_conn.keys():
+                conn = self.map_key_conn[connkey]
+                if conn.state==Connection.state_connecting or \
+                   conn.state==Connection.state_connected_in or \
+                   conn.state==Connection.state_connected_out:
+                    self.logger.log(logging.INFO,"Closing connection to %s because were are shutting down"%conn.host_id)
+                    del self.map_fd_conn[conn.fd.fileno()]
+                    del self.map_key_conn[connkey]
+                    conn.fd.close()
+                elif conn.state==Connection.state_tls:
+                    pass #todo
+                elif conn.state==Connection.state_ready:
+                    #self.__sendDPR(conn,ProtocolConstants.DI_DISCONNECT_CAUSE_REBOOTING)
+                    #self.__closeConnection_unlocked(conn,True)
+                    self.__initiateConnectionClose(conn,ProtocolConstants.DI_DISCONNECT_CAUSE_REBOOTING)
+                elif conn.state==Connection.state_closing:
+                    pass #nothing to do
+                elif conn.state==Connection.state_closed:
+                    pass #nothing to do
         self.__wakeSelectThread()
-        self.map_key_conn_cv.acquire()
-        self.map_key_conn_cv.notify()
-        self.map_key_conn_cv.release()
+        with self.map_key_conn_cv:
+            self.map_key_conn_cv.notify()
         self.node_thread.join()
         self.node_thread = None
         self.reconnect_thread.join()
@@ -170,12 +168,11 @@ class Node:
 
     def __anyReadyConnection(self):
         rc=False
-        self.map_key_conn_lock.acquire()
-        for conn in self.map_key_conn.itervalues():
-            if conn.state==Connection.state_ready:
-                rc=True
-                break
-        self.map_key_conn_lock.release()
+        with self.map_key_conn_lock:
+            for conn in self.map_key_conn.itervalues():
+                if conn.state==Connection.state_ready:
+                    rc=True
+                    break
         return rc
 
     def waitForConnection(self,timeout=None):
@@ -184,19 +181,18 @@ class Node:
         and capability-exchange has finished, or the specified timeout has expired.
           timeout  The maximum time to wait in milliseconds.
         """
-        self.obj_conn_wait.acquire()
-        if timeout==None:
-            while not self.__anyReadyConnection():
-                self.obj_conn_wait.wait()
-        else:
-            now = time.time()
-            end = now+timeout
-            while not self.__anyReadyConnection():
+        with self.obj_conn_wait:
+            if timeout==None:
+                while not self.__anyReadyConnection():
+                    self.obj_conn_wait.wait()
+            else:
                 now = time.time()
-                w = end - now
-                if w<0.0: break
-                self.obj_conn_wait.wait(w)
-        self.obj_conn_wait.release()
+                end = now+timeout
+                while not self.__anyReadyConnection():
+                    now = time.time()
+                    w = end - now
+                    if w<0.0: break
+                    self.obj_conn_wait.wait(w)
 
     def findConnection(self,peer):
         """Returns the connection key for a peer.
@@ -204,12 +200,11 @@ class Node:
         """
         self.logger.log(logging.DEBUG,"Finding '" + peer.host +"'")
         connkey=None
-        self.map_key_conn_lock.acquire()
-        for connkey2,conn in self.map_key_conn.iteritems():
-            if conn.peer and conn.peer==peer:
-                connkey=connkey2
-                break
-        self.map_key_conn_lock.release()
+        with self.map_key_conn_lock:
+            for connkey2,conn in self.map_key_conn.iteritems():
+                if conn.peer and conn.peer==peer:
+                    connkey=connkey2
+                    break
         if not connkey:
             self.logger.log(logging.DEBUG,peer.host+" NOT found")
         return connkey
@@ -221,41 +216,35 @@ class Node:
         usually much easier to just call sendMessage() and catch the
         exception if the connection has gone stale.
         """
-        self.map_key_conn_lock.acquire()
-        rc=connkey in self.map_key_conn
-        self.map_key_conn_lock.release()
+        with self.map_key_conn_lock:
+            rc=connkey in self.map_key_conn
         return rc
 
     def connectionKey2Peer(self,connkey):
-        self.map_key_conn_lock.acquire()
-        try:
-            peer = self.map_key_conn[connkey].peer
-        except KeyError:
-            peer = None
-        self.map_key_conn_lock.release()
+        with self.map_key_conn_lock:
+            try:
+                peer = self.map_key_conn[connkey].peer
+            except KeyError:
+                peer = None
         return peer
 
     def connectionKey2InetAddress(self,connkey):
-        self.map_key_conn_lock.acquire()
-        try:
-            conn = self.map_key_conn[connkey]
-        except KeyError:
-            self.map_key_conn_lock.release()
-            return None
-        a = conn.fd.getpeername()
-        self.map_key_conn_lock.release()
+        with self.map_key_conn_lock:
+            try:
+                conn = self.map_key_conn[connkey]
+            except KeyError:
+                return None
+            a = conn.fd.getpeername()
         return a
 
     def nextHopByHopIdentifier(self,connkey):
         "Returns the next hop-by-hop identifier for a connection"
-        self.map_key_conn_lock.acquire()
-        try:
-            conn = self.map_key_conn[connkey]
-        except KeyError:
-            self.map_key_conn_lock.release()
-            raise StaleConnectionError()
-        rc = conn.nextHopByHopIdentifier()
-        self.map_key_conn_lock.release()
+        with self.map_key_conn_lock:
+            try:
+                conn = self.map_key_conn[connkey]
+            except KeyError:
+                raise StaleConnectionError()
+            rc = conn.nextHopByHopIdentifier()
         return rc
 
     def sendMessage(self,msg,connkey):
@@ -265,17 +254,14 @@ class Node:
           connkey  The connection to use. If the connection has been closed in
                    the meantime StaleConnectionError is thrown.
         """
-        self.map_key_conn_lock.acquire()
-        try:
-            conn = self.map_key_conn[connkey]
-        except KeyError:
-            self.map_key_conn_lock.release()
-            raise StaleConnectionError()
-        if conn.state!=Connection.state_ready:
-            self.map_key_conn_lock.release()
-            raise StaleConnectionError()
-        self.__sendMessage_unlocked(msg,conn)
-        self.map_key_conn_lock.release()
+        with self.map_key_conn_lock:
+            try:
+                conn = self.map_key_conn[connkey]
+            except KeyError:
+                raise StaleConnectionError()
+            if conn.state!=Connection.state_ready:
+                raise StaleConnectionError()
+            self.__sendMessage_unlocked(msg,conn)
 
     def __sendMessage_unlocked(self,msg,conn):
         self.logger.log(logging.DEBUG, "command=%d, to=%s" % (
@@ -310,19 +296,16 @@ class Node:
           persistent  If true the Node wil try to keep a connection open to the peer.
         """
         if persistent:
-            self.persistent_peers_lock.acquire()
-            self.persistent_peers.add(peer)
-            self.persistent_peers_lock.release()
+            with self.persistent_peers_lock:
+                self.persistent_peers.add(peer)
 
-        self.map_key_conn_lock.acquire()
-        for conn in self.map_key_conn.itervalues():
-            if conn.peer and \
-               conn.peer == peer:
-                #already has a connection to that peer
-                self.map_key_conn_lock.release()
-                return
-            #what if we are connecting and the host_id matches?
-        self.map_key_conn_lock.release()
+        with self.map_key_conn_lock:
+            for conn in self.map_key_conn.itervalues():
+                if conn.peer and \
+                   conn.peer == peer:
+                    #already has a connection to that peer
+                    return
+                #what if we are connecting and the host_id matches?
 
         #look up the ip-address first without the large mutex held
         #We should really try all the possible addresses...
@@ -354,10 +337,9 @@ class Node:
             conn.state = Connection.state_connected_out
         conn.fd = fd
 
-        self.map_key_conn_lock.acquire()
-        self.map_key_conn[conn.key] = conn
-        self.map_fd_conn[conn.fd.fileno()] = conn
-        self.map_key_conn_lock.release()
+        with self.map_key_conn_lock:
+            self.map_key_conn[conn.key] = conn
+            self.map_fd_conn[conn.fd.fileno()] = conn
 
         if conn.state == Connection.state_connected_out:
             self.__sendCER(conn)
@@ -372,22 +354,20 @@ class Node:
             if self.please_stop:
                 if time.time()>=self.shutdown_deadline:
                     break
-                self.map_key_conn_lock.acquire()
-                isempty = len(self.map_key_conn)==0
-                self.map_key_conn_lock.release()
+                with self.map_key_conn_lock:
+                    isempty = len(self.map_key_conn)==0
                 if isempty:
                     break
 
             #build FD sets
-            self.map_key_conn_lock.acquire()
-            iwtd=[]
-            owtd=[]
-            for conn in self.map_key_conn.itervalues():
-                if conn.state!=Connection.state_closed:
-                    iwtd.append(conn.fd)
-                if conn.hasNetOutput() or conn.state == Connection.state_connecting:
-                    owtd.append(conn.fd)
-            self.map_key_conn_lock.release()
+            with self.map_key_conn_lock:
+                iwtd=[]
+                owtd=[]
+                for conn in self.map_key_conn.itervalues():
+                    if conn.state!=Connection.state_closed:
+                        iwtd.append(conn.fd)
+                    if conn.hasNetOutput() or conn.state == Connection.state_connecting:
+                        owtd.append(conn.fd)
             if self.sock_listen:
                 iwtd.append(self.sock_listen)
             iwtd.append(self.fd_pipe[0])
@@ -415,10 +395,9 @@ class Node:
                             conn.fd.setblocking(False)
                             conn.host_id = client[1][0]
                             conn.state = Connection.state_connected_in
-                            self.map_key_conn_lock.acquire()
-                            self.map_key_conn[conn.key] = conn
-                            self.map_fd_conn[conn.fd.fileno()] = conn
-                            self.map_key_conn_lock.release()
+                            with self.map_key_conn_lock:
+                                self.map_key_conn[conn.key] = conn
+                                self.map_fd_conn[conn.fd.fileno()] = conn
                         else:
                             #We don't want to add the connection if were are shutting down.
                             client[0].close()
@@ -430,9 +409,8 @@ class Node:
                 else:
                     #readable
                     self.logger.log(logging.DEBUG,"fd is readable")
-                    self.map_key_conn_lock.acquire()
-                    conn = self.map_fd_conn[fd.fileno()]
-                    self.map_key_conn_lock.release()
+                    with self.map_key_conn_lock:
+                        conn = self.map_fd_conn[fd.fileno()]
                     self.__handleReadable(conn)
                     if conn.state==Connection.state_closed:
                         #remove from ready_fds[1] to avoid silly exception in fileno() call
@@ -441,90 +419,83 @@ class Node:
                                 del ready_fds[1][i]
                                 break
             for fd in ready_fds[1]:
-                self.map_key_conn_lock.acquire()
-                conn = self.map_fd_conn[fd.fileno()]
-                if conn.state==Connection.state_connecting:
-                    #connection status ready
-                    self.logger.log(logging.DEBUG,"An outbound connection is ready (key is connectable)")
-                    err = fd.getsockopt(socket.SOL_SOCKET,socket.SO_ERROR)
-                    if err==0:
-                        self.logger.log(logging.DEBUG,"Connected!")
-                        conn.state = Connection.state_connected_out
-                        self.__sendCER(conn)
+                with self.map_key_conn_lock:
+                    conn = self.map_fd_conn[fd.fileno()]
+                    if conn.state==Connection.state_connecting:
+                        #connection status ready
+                        self.logger.log(logging.DEBUG,"An outbound connection is ready (key is connectable)")
+                        err = fd.getsockopt(socket.SOL_SOCKET,socket.SO_ERROR)
+                        if err==0:
+                            self.logger.log(logging.DEBUG,"Connected!")
+                            conn.state = Connection.state_connected_out
+                            self.__sendCER(conn)
+                        else:
+                            self.logger.log(logging.WARNING,"Connection to '"+conn.host_id+"' failed")
+                            fd.close()
+                            del self.map_key_conn[conn.key]
+                            del self.map_fd_conn[fd.fileno()]
                     else:
-                        self.logger.log(logging.WARNING,"Connection to '"+conn.host_id+"' failed")
-                        fd.close()
-                        del self.map_key_conn[conn.key]
-                        del self.map_fd_conn[fd.fileno()]
-                else:
-                    #plain writable
-                    self.logger.log(logging.DEBUG,"fd is writable")
-                    self.__handleWritable(conn)
-                self.map_key_conn_lock.release()
+                        #plain writable
+                        self.logger.log(logging.DEBUG,"fd is writable")
+                        self.__handleWritable(conn)
 
             self.__runTimers()
 
         #close all connections
         self.logger.log(logging.DEBUG,"Closing all transport connections")
-        self.map_key_conn_lock.acquire()
-        for connkey in self.map_key_conn.keys():
-            conn = self.map_key_conn[connkey]
-            self.__closeConnection_unlocked(conn,True)
-        self.map_key_conn_lock.release()
+        with self.map_key_conn_lock:
+            for connkey in self.map_key_conn.keys():
+                conn = self.map_key_conn[connkey]
+                self.__closeConnection_unlocked(conn,True)
 
     def __wakeSelectThread(self):
         self.fd_pipe[1].send("d")
 
     def __calcNextTimeout(self):
         timeout = None
-        self.map_key_conn_lock.acquire()
-        for conn in self.map_key_conn.itervalues():
-            ready = (conn.state==Connection.state_ready)
-            conn_timeout = conn.timers.calcNextTimeout(ready)
-            if conn_timeout and ((not timeout) or conn_timeout<timeout):
-                timeout = conn_timeout
-        self.map_key_conn_lock.release()
+        with self.map_key_conn_lock:
+            for conn in self.map_key_conn.itervalues():
+                ready = (conn.state==Connection.state_ready)
+                conn_timeout = conn.timers.calcNextTimeout(ready)
+                if conn_timeout and ((not timeout) or conn_timeout<timeout):
+                    timeout = conn_timeout
         if self.please_stop:
             if (not timeout) or self.shutdown_deadline<timeout:
                 timeout = self.shutdown_deadline
         return timeout
 
     def __runTimers(self):
-        self.map_key_conn_lock.acquire()
-        for connkey in self.map_key_conn.keys():
-            conn = self.map_key_conn[connkey]
-            ready = (conn.state==Connection.state_ready)
-            action=conn.timers.calcAction(ready)
-            if action==ConnectionTimers.timer_action_none:
-                pass
-            elif action==ConnectionTimers.timer_action_disconnect_no_cer:
-                self.logger.log(logging.WARNING,"Disconnecting due to no CER/CEA")
-                self.__closeConnection_unlocked(conn)
-            elif action==ConnectionTimers.timer_action_disconnect_idle:
-                self.logger.log(logging.WARNING,"Disconnecting due to idle")
-                #busy is the closest thing to "no traffic for a long time. No point in keeping the connection"
-                self.__sendDPR(conn,ProtocolConstants.DI_DISCONNECT_CAUSE_BUSY)
-                self.__closeConnection_unlocked(conn)
-            elif action==ConnectionTimers.timer_action_disconnect_no_dw:
-                self.logger.log(logging.WARNING,"Disconnecting due to no DWA")
-                self.__closeConnection_unlocked(conn)
-            elif action==ConnectionTimers.timer_action_dwr:
-                self.__sendDWR(conn)
-        self.map_key_conn_lock.release()
+        with self.map_key_conn_lock:
+            for connkey in self.map_key_conn.keys():
+                conn = self.map_key_conn[connkey]
+                ready = (conn.state==Connection.state_ready)
+                action=conn.timers.calcAction(ready)
+                if action==ConnectionTimers.timer_action_none:
+                    pass
+                elif action==ConnectionTimers.timer_action_disconnect_no_cer:
+                    self.logger.log(logging.WARNING,"Disconnecting due to no CER/CEA")
+                    self.__closeConnection_unlocked(conn)
+                elif action==ConnectionTimers.timer_action_disconnect_idle:
+                    self.logger.log(logging.WARNING,"Disconnecting due to idle")
+                    #busy is the closest thing to "no traffic for a long time. No point in keeping the connection"
+                    self.__sendDPR(conn,ProtocolConstants.DI_DISCONNECT_CAUSE_BUSY)
+                    self.__closeConnection_unlocked(conn)
+                elif action==ConnectionTimers.timer_action_disconnect_no_dw:
+                    self.logger.log(logging.WARNING,"Disconnecting due to no DWA")
+                    self.__closeConnection_unlocked(conn)
+                elif action==ConnectionTimers.timer_action_dwr:
+                    self.__sendDWR(conn)
 
     def run_reconnect(self):
         while True:
-            self.map_key_conn_cv.acquire()
-            if self.please_stop:
-                self.map_key_conn_cv.release()
-                break
-            self.map_key_conn_cv.wait(30.0)
-            self.map_key_conn_cv.release()
+            with self.map_key_conn_cv:
+                if self.please_stop:
+                    break
+                self.map_key_conn_cv.wait(30.0)
 
-            self.persistent_peers_lock.acquire()
-            for pp in self.persistent_peers:
-                self.initiateConnection(pp,False)
-            self.persistent_peers_lock.release()
+            with self.persistent_peers_lock:
+                for pp in self.persistent_peers:
+                    self.initiateConnection(pp,False)
 
     def __handleReadable(self,conn):
         self.logger.log(logging.DEBUG,"handlereadable()...")
@@ -643,9 +614,8 @@ class Node:
 
     def __closeConnection(self,conn,reset=False):
         self.logger.log(logging.INFO,"Closing connection to " + conn.host_id)
-        self.map_key_conn_lock.acquire()
-        self.__closeConnection_unlocked(conn,reset)
-        self.map_key_conn_lock.release()
+        with self.map_key_conn_lock:
+            self.__closeConnection_unlocked(conn,reset)
         self.logger.log(logging.DEBUG,"Closed connection to " + conn.host_id)
 
     def __initiateConnectionClose(self,conn,why):
@@ -794,17 +764,16 @@ class Node:
 
         close_other_connection = c>0
         rc = True
-        self.map_key_conn_cv.acquire()
-        for connkey,conn in self.map_key_conn.iteritems():
-            if conn.host_id and conn.host_id==cer_host_id:
-                if close_other_connection:
-                    self.__closeConnection(conn)
-                    rc = True
-                    break
-                else:
-                    rc = False #close this one
-                    break
-        self.map_key_conn_cv.release()
+        with self.map_key_conn_cv:
+            for connkey,conn in self.map_key_conn.iteritems():
+                if conn.host_id and conn.host_id==cer_host_id:
+                    if close_other_connection:
+                        self.__closeConnection(conn)
+                        rc = True
+                        break
+                    else:
+                        rc = False #close this one
+                        break
         return rc
 
     def __handleCER(self,msg,conn):
@@ -851,9 +820,8 @@ class Node:
 
             if self.connection_listener:
                 self.connection_listener.handle_connection(conn.key, conn.peer, True)
-            self.obj_conn_wait.acquire()
-            self.obj_conn_wait.notifyAll()
-            self.obj_conn_wait.release()
+            with self.obj_conn_wait:
+                self.obj_conn_wait.notifyAll()
             return True
         else:
             return False
@@ -877,9 +845,8 @@ class Node:
             self.logger.log(logging.INFO,"Connection to " +conn.host_id + " is now ready")
             if self.connection_listener:
                 self.connection_listener.handle_connection(conn.key, conn.peer, True)
-            self.obj_conn_wait.acquire()
-            self.obj_conn_wait.notifyAll()
-            self.obj_conn_wait.release()
+            with self.obj_conn_wait:
+                self.obj_conn_wait.notifyAll()
             return True
         else:
             return False

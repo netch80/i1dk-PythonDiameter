@@ -13,19 +13,17 @@ class NodeState:
         self.lock = thread.allocate_lock()
 
     def nextEndToEndIdentifier(self):
-        self.lock.acquire()
-        v = self.end_to_end_identifier
-        self.end_to_end_identifier += 1
-        self.lock.release()
+        with self.lock:
+            v = self.end_to_end_identifier
+            self.end_to_end_identifier += 1
         return v
 
     def nextSessionId_second_part(self):
-        self.lock.acquire()
-        v = self.session_id_low
-        self.session_id_low += 1
-        if self.session_id_low == 0:
-            self.session_id_high += 1
-        self.lock.release()
+        with self.lock:
+            v = self.session_id_low
+            self.session_id_low += 1
+            if self.session_id_low == 0:
+                self.session_id_high += 1
         return str(self.session_id_high) + ";" + str(v)
 
 
