@@ -60,7 +60,7 @@ class SimpleSyncClient(NodeManager):
             #ok, sent
             with sc.cv:
                 while not sc.answer_ready:
-                    sc.cv.wait()
+                    sc.cv.wait(10)
         except NotRoutableError:
             self.logger.log(logging.DEBUG,"SimpleSyncClient.sendRequest(): not routable")
         except NotARequestError:
