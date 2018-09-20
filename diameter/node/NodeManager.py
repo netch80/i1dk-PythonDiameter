@@ -237,9 +237,13 @@ class NodeManager:
             any_peers = True
             self.logger.log(logging.DEBUG,"Considering sending request to %s"%p.host)
             connkey = self.node.findConnection(p)
-            if not connkey: continue
+            if not connkey:
+                self.logger.log(logging.DEBUG,"peer %s: no connkey"%p.host)
+                continue
             p2 = self.node.connectionKey2Peer(connkey)
-            if not p2: continue
+            if not p2:
+                self.logger.log(logging.DEBUG,"peer %s: no p2"%p.host)
+                continue
             if not self.node.isAllowedApplication(request,p2):
                 self.logger.log(logging.DEBUG,"peer %s cannot handle request"%p.host)
                 continue

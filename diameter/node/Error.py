@@ -27,8 +27,8 @@ class NotAnAnswerError(error):
         error.__init__(self,"Message is not an answer")
 
 class NotRoutableError(error):
-    def __init__(self):
-        error.__init__(self,"The message could not be routed to any peers")
+    def __init__(self,msg="The message could not be routed to any peers"):
+        error.__init__(self,msg)
 
 class NotProxiableError(error):
     def __init__(self):
