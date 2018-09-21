@@ -16,6 +16,7 @@ class AVP_Grouped(AVP):
 
     def getAVPs(self):
         """Returns a copy of the embedded AVPs in a list"""
+        ## FIXME: this can be cached, call getAVPs() just once
         avps=[]
         u = Unpacker(self.payload)
         bytes_left=len(self.payload)
@@ -43,7 +44,7 @@ class AVP_Grouped(AVP):
 
     @staticmethod
     def narrow(avp):
-        """Convert generic AVP to AVP_Float64
+        """Convert generic AVP to AVP_Grouped
         Raises: InvalidAVPLengthError
         """
         avps=[]
@@ -60,6 +61,13 @@ class AVP_Grouped(AVP):
         a = AVP_Grouped(avp.code, avps, avp.vendor_id)
         a.flags = avp.flags
         return a
+
+    def find(self,code,vendor_id=0):
+        """Returns the first AVP with a matching code (and vendor_id if nonzero)."""
+        for a in self.getAVPs():
+            if a.code==code and a.vendor_id==vendor_id:
+                return a
+
 
 def _unittest():
     a = AVP_Grouped(1)
