@@ -2,15 +2,15 @@
 import ProtocolConstants
 from AVP import AVP
 
-def setMandatory(avps,codes):
+def setMandatory(avps,codes,vendor_id=0):
     """Sets the M-bit on the avps with the specified codes.
-    Vendor-specific AVPs are not modified.
+    Vendor-specific AVPs are modified for the specified vendor.
     AVPs not listed are not modified.
       avps   The AVPs to examine and possibly set the M-bit on.
       codes  Array of codes
     """
     for a in avps:
-        if a.vendor_id==0 and (a.code in codes):
+        if a.vendor_id==vendor_id and (a.code in codes):
             a.setMandatory(True)
 
 rfc3588_mandatory_codes = frozenset([
