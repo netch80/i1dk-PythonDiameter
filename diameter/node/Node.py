@@ -184,7 +184,7 @@ class Node:
         with self.obj_conn_wait:
             if timeout==None:
                 while not self.__anyReadyConnection():
-                    self.obj_conn_wait.wait()
+                    self.obj_conn_wait.wait(10)
             else:
                 now = time.time()
                 end = now+timeout
