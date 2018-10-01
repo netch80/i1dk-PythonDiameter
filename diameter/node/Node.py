@@ -913,8 +913,8 @@ class Node:
                 if msg.hdr.isRequest():
                     error_response = Message()
                     error_response.prepareResponse(msg)
+                    self.__addCEStuff(error_response,self.settings.capabilities,conn)
                     error_response.append(AVP_Unsigned32(ProtocolConstants.DI_RESULT_CODE, ProtocolConstants.DIAMETER_RESULT_NO_COMMON_APPLICATION))
-                    self.addOurHostAndRealm(error_response)
                     Utils.setMandatory_RFC3588(error_response)
                     self.__sendMessage_unlocked(error_response,conn)
                 return False
@@ -925,8 +925,8 @@ class Node:
             if msg.hdr.isRequest():
                 error_response = Message()
                 error_response.prepareResponse(msg)
+                self.__addCEStuff(error_response,self.settings.capabilities,conn)
                 error_response.append(AVP_Unsigned32(ProtocolConstants.DI_RESULT_CODE, ProtocolConstants.DIAMETER_RESULT_INVALID_AVP_LENGTH))
-                self.addOurHostAndRealm(error_response)
                 error_response.append(AVP_FailedAVP(ex.avp))
                 Utils.setMandatory_RFC3588(error_response)
                 self.__sendMessage_unlocked(error_response,conn)
@@ -936,8 +936,8 @@ class Node:
             if msg.hdr.isRequest():
                 error_response = Message()
                 error_response.prepareResponse(msg)
+                self.__addCEStuff(error_response,self.settings.capabilities,conn)
                 error_response.append(AVP_Unsigned32(ProtocolConstants.DI_RESULT_CODE, ProtocolConstants.DIAMETER_RESULT_INVALID_AVP_VALUE))
-                self.addOurHostAndRealm(error_response)
                 error_response.append(AVP_FailedAVP(ex.avp))
                 Utils.setMandatory_RFC3588(error_response)
                 self.__sendMessage_unlocked(error_response,conn)
